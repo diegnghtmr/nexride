@@ -9,10 +9,13 @@ import { RequestIdMiddleware } from './common/observability/request-id.middlewar
 import { buildPinoConfig } from './common/observability/pino.config';
 import { SafePointsModule } from './safe-points/safe-points.module';
 import { FleetModule } from './fleet/fleet.module';
+import { DispatchModule } from './dispatch/dispatch.module';
 import { SafePointEntity } from './safe-points/infrastructure/safe-point.entity';
 import { SafePointAuditEntity } from './safe-points/infrastructure/safe-point-audit.entity';
+import { DispatchDecisionEntity } from './dispatch/infrastructure/persistence/dispatch-decision.entity';
 import { EnablePostgis1700000000 } from './migrations/1700000000-EnablePostgis';
 import { CreateSafePoints1700000001 } from './migrations/1700000001-CreateSafePoints';
+import { CreateDispatchDecisions1700000002 } from './migrations/1700000002-CreateDispatchDecisions';
 
 @Module({
   imports: [
@@ -33,9 +36,9 @@ import { CreateSafePoints1700000001 } from './migrations/1700000001-CreateSafePo
         url: configService.get<string>('DATABASE_URL'),
         autoLoadEntities: true,
         synchronize: false,
-        migrations: [EnablePostgis1700000000, CreateSafePoints1700000001],
+        migrations: [EnablePostgis1700000000, CreateSafePoints1700000001, CreateDispatchDecisions1700000002],
         migrationsRun: false, // run explicitly via `npm run migrate`
-        entities: [SafePointEntity, SafePointAuditEntity],
+        entities: [SafePointEntity, SafePointAuditEntity, DispatchDecisionEntity],
       }),
       inject: [ConfigService],
     }),
@@ -51,6 +54,7 @@ import { CreateSafePoints1700000001 } from './migrations/1700000001-CreateSafePo
     // Feature modules
     SafePointsModule,
     FleetModule,
+    DispatchModule,
   ],
 
   providers: [
