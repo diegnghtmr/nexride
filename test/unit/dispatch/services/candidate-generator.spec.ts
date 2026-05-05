@@ -86,6 +86,25 @@ describe('CandidateGenerator', () => {
     await expect(generator.generate(origin)).rejects.toThrow('Redis down');
   });
 
+  it('maps vehicle status in_service to busy state', async () => {
+    const busyVehicle = { ...makeSharedVehicle('VH-BUSY'), status: 'in_service' as const };
+    const fleetSvc: jest.Mocked<IFleetService> = {
+      findCandidatesInRadius: jest.fn().mockResolvedValue([busyVehicle]),
+      getVehicleSnapshot: jest.fn(),
+    };
+    const safePointsSvc: jest.Mocked<ISafePointsService> = {
+      findWithin: jest.fn().mockResolvedValue([]),
+      findById: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      deactivate: jest.fn(),
+      delete: jest.fn(),
+    };
+    const generator = new CandidateGenerator(fleetSvc, safePointsSvc, cfg);
+    const result = await generator.generate(origin);
+    expect(result.vehicles[0].state).toBe('busy');
+  });
+
   it('returns empty arrays when both services return no results', async () => {
     const fleetSvc: jest.Mocked<IFleetService> = {
       findCandidatesInRadius: jest.fn().mockResolvedValue([]),
