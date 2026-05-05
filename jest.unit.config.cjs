@@ -28,7 +28,7 @@ module.exports = {
     '!src/main.ts',
     '!src/app.module.ts',
   ],
-  coverageThresholds: {
+  coverageThreshold: {
     global: {
       statements: 85,
       branches: 80,

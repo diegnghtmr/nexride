@@ -1,40 +1,25 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule, ValidationPipe } from '@nestjs/common';
+import { APP_FILTER, APP_PIPE } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { LoggerModule } from 'nestjs-pino';
+import { DomainExceptionFilter } from './common/filters/domain-exception.filter';
+import { RequestIdMiddleware } from './common/observability/request-id.middleware';
+import { buildPinoConfig } from './common/observability/pino.config';
 
 @Module({
   imports: [
-    // Global config — validation added in Phase 2 when env.validation.ts is created
+    // Global config — loadDispatchConfig wired via ConfigModule.forRoot
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env', '.env.local'],
     }),
 
-    // Structured logging via pino
-    LoggerModule.forRoot({
-      pinoHttp: {
-        level: process.env['LOG_LEVEL'] ?? 'info',
-        transport:
-          process.env['NODE_ENV'] !== 'production'
-            ? { target: 'pino-pretty', options: { singleLine: true } }
-            : undefined,
-        formatters: {
-          level: (label: string) => ({ level: label }),
-        },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        customProps: (req: any) => ({
-          module: req['module'],
-          request_id: req['correlationId'],
-          user_id: req['user']?.id,
-          zone_id: req['zoneId'],
-        }),
-        redact: ['req.headers.authorization', 'req.headers.cookie'],
-      },
-    }),
+    // Structured logging via pino (design §8)
+    LoggerModule.forRoot(buildPinoConfig()),
 
-    // TypeORM — placeholder; full config added in Phase 2 after env.validation.ts
+    // TypeORM — placeholder; full config added in Phase 3 after entities are ready
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -42,7 +27,6 @@ import { LoggerModule } from 'nestjs-pino';
         url: configService.get<string>('DATABASE_URL'),
         autoLoadEntities: true,
         synchronize: false,
-        // migrations loaded in Phase 3 when entities are ready
       }),
       inject: [ConfigService],
     }),
@@ -54,8 +38,30 @@ import { LoggerModule } from 'nestjs-pino';
       maxListeners: 20,
       verboseMemoryLeak: true,
     }),
+  ],
 
-    // Feature modules — wired in Phase 2-5
+  providers: [
+    // Global exception filter — maps DomainError → typed JSON (design §9)
+    {
+      provide: APP_FILTER,
+      useClass: DomainExceptionFilter,
+    },
+
+    // Global validation pipe — whitelist/transform/forbidNonWhitelisted
+    {
+      provide: APP_PIPE,
+      useFactory: () =>
+        new ValidationPipe({
+          whitelist: true,
+          forbidNonWhitelisted: true,
+          transform: true,
+        }),
+    },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    // RequestIdMiddleware assigns correlationId to all requests
+    consumer.apply(RequestIdMiddleware).forRoutes('*');
+  }
+}
