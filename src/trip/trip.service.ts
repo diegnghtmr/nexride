@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { ITripService } from '../common/interfaces/ITripService';
 import { CreateTripInput, Trip } from '../common/interfaces/shared-types';
 import { TripEntity } from './infrastructure/trip.entity';
@@ -12,8 +12,18 @@ export class TripService implements ITripService {
     private readonly tripRepo: Repository<TripEntity>,
   ) {}
 
-  async createMinimum(input: CreateTripInput): Promise<Trip> {
-    const entity = this.tripRepo.create({
+  /**
+   * Create the minimum trip row.
+   *
+   * `manager` MUST be provided when called from inside a transaction that
+   * already holds a row lock on `dispatch_decisions` (e.g. ConfirmDispatchUseCase
+   * with `SELECT FOR UPDATE`). The `trips.request_id` FK references
+   * `dispatch_decisions.request_id`, so inserting from a different connection
+   * deadlocks against the lock holder.
+   */
+  async createMinimum(input: CreateTripInput, manager?: EntityManager): Promise<Trip> {
+    const repo = manager ? manager.getRepository(TripEntity) : this.tripRepo;
+    const entity = repo.create({
       requestId: input.requestId,
       riderId: input.riderId,
       vehicleId: input.vehicleId,
@@ -27,7 +37,7 @@ export class TripService implements ITripService {
       assignedAt: new Date(),
     });
 
-    const saved = await this.tripRepo.save(entity);
+    const saved = await repo.save(entity);
 
     return {
       id: saved.id,

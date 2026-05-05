@@ -67,17 +67,23 @@ export class ConfirmDispatchUseCase {
           ? decision.origin // We'd need the safe point location here; using origin as pickup fallback
           : decision.origin;
 
-      // Create minimum trip
-      const newTrip = await this.tripService.createMinimum({
-        requestId: input.requestId,
-        riderId: decision.riderId,
-        vehicleId: lockedEntity.vehicleId,
-        origin: decision.origin,
-        destination: decision.destination,
-        pickupLocation,
-        pickupType: input.choice,
-        suggestedPointId: input.choice === 'suggested' ? decision.suggestedPointId : undefined,
-      });
+      // Create minimum trip — pass the transaction's manager so the INSERT
+      // happens on the same connection that holds the SELECT FOR UPDATE.
+      // Otherwise the FK validation on trips.request_id deadlocks against the
+      // row lock on dispatch_decisions.
+      const newTrip = await this.tripService.createMinimum(
+        {
+          requestId: input.requestId,
+          riderId: decision.riderId,
+          vehicleId: lockedEntity.vehicleId,
+          origin: decision.origin,
+          destination: decision.destination,
+          pickupLocation,
+          pickupType: input.choice,
+          suggestedPointId: input.choice === 'suggested' ? decision.suggestedPointId : undefined,
+        },
+        manager,
+      );
 
       // Update decision record within the same transaction connection
       await manager.query(
