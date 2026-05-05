@@ -18,6 +18,8 @@ export class DecisionRepository implements IDecisionRepository {
       riderId: decision.riderId,
       originalLat: decision.origin.lat,
       originalLng: decision.origin.lng,
+      destinationLat: decision.destination.lat,
+      destinationLng: decision.destination.lng,
       suggestedPointId: decision.suggestedPointId ?? null,
       vehicleId: decision.winnerVehicleId,
       scoresJson: decision.scoresJson,
@@ -47,7 +49,10 @@ export class DecisionRepository implements IDecisionRepository {
       requestId: entity.requestId,
       riderId: entity.riderId,
       origin: { lat: entity.originalLat, lng: entity.originalLng },
-      destination: { lat: 0, lng: 0 }, // destination not stored in this table
+      destination: {
+        lat: entity.destinationLat ?? 0,
+        lng: entity.destinationLng ?? 0,
+      },
       winnerVehicleId: entity.vehicleId,
       suggestedPointId: entity.suggestedPointId ?? undefined,
       scoresJson: entity.scoresJson,

@@ -23,6 +23,7 @@ import { CreateSafePoints1700000001 } from './migrations/1700000001-CreateSafePo
 import { CreateDispatchDecisions1700000002 } from './migrations/1700000002-CreateDispatchDecisions';
 import { CreateTrips1700000003 } from './migrations/1700000003-CreateTrips';
 import { CreateAnalyticsEvents1700000004 } from './migrations/1700000004-CreateAnalyticsEvents';
+import { AddDestinationToDispatchDecisions1700000005 } from './migrations/1700000005-AddDestinationToDispatchDecisions';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { CreateAnalyticsEvents1700000004 } from './migrations/1700000004-CreateA
           CreateDispatchDecisions1700000002,
           CreateTrips1700000003,
           CreateAnalyticsEvents1700000004,
+          AddDestinationToDispatchDecisions1700000005,
         ],
         migrationsRun: false, // run explicitly via `npm run migrate`
         entities: [SafePointEntity, SafePointAuditEntity, DispatchDecisionEntity, TripEntity, AnalyticsEventEntity],
