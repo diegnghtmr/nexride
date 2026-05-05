@@ -67,25 +67,29 @@
 
 ## DD-01 — Architecture Decision Document
 
+> **DD-01** covers the modular monolith architecture: NestJS module boundaries, hexagonal domain isolation, in-process event bus, and explicit TypeORM migrations. Cross-references: RTF-16..22 (dispatch pipeline), CAT-04 (architecture rules CI), CT-05..06 (depcruise gates).
+
 | DD-01 Ref | Decisión | Estado | Evidencia |
 |---|---|---|---|
 | DD-01 §1 | Módulos NestJS con fronteras explícitas | Implementado | `.dependency-cruiser.cjs` + `test/architecture/dispatch-isolation.spec.ts` |
 | DD-01 §2 | Dispatch consume fleet/safe-points solo via interfaces | Implementado | `src/common/interfaces/IFleetService.ts`, `ISafePointsService.ts` |
 | DD-01 §3 | In-process event bus para analytics | Implementado | `src/common/events/`, `src/analytics/handlers/dispatch.handler.ts` |
 | DD-01 §4 | Hexagonal — dominio framework-agnostic | Implementado | `src/dispatch/domain/**` (cero imports @nestjs) |
-| DD-01 §5 | Migraciones explícitas TypeORM | Implementado | `src/migrations/1700000000-1700000004.ts` |
+| DD-01 §5 | Migraciones explícitas TypeORM | Implementado | `src/migrations/1700000000-1700000005.ts` |
 
 ---
 
 ## DD-02 — Dispatch Design Document
+
+> **DD-02** covers the dispatch evaluation pipeline design: scoring formula, decision gate, confirmation transaction, IDistanceProvider degradation, and IFlagProvider for runtime weights. Cross-references: RTF-18..22 (scoring + decision + fallback + persistence), DE-04 (walking < 120m boundary — see SCOPE.md §4 for semantic clarification), NFR-10 (ACID confirm).
 
 | DD-02 Ref | Decisión | Estado | Evidencia |
 |---|---|---|---|
 | DD-02 §3 | Pipeline EvaluateDispatch: candidatura → filtrado → scoring → decisión → persistencia | Implementado | `src/dispatch/application/evaluate-dispatch.use-case.ts` |
 | DD-02 §4 | Config externalizada (pesos, radios, timeouts) | Implementado | `src/common/config/dispatch.config.ts` |
 | DD-02 §5 | Fórmulas de score: proximity, energy, safety, continuity | Implementado | `src/dispatch/domain/services/scoring-engine.ts` |
-| DD-02 §6 | Suggeston gate: mejora relativa ≥15% AND caminata <120m | Implementado | `src/dispatch/domain/services/decision-maker.ts` |
-| DD-02 §7 | ConfirmDispatch: transacción ACID + eventos | Implementado | `src/dispatch/application/confirm-dispatch.use-case.ts` |
+| DD-02 §6 | Suggestion gate: mejora relativa ≥15% AND caminata <120m (strictly less than per DE-04; float epsilon 1e-9) | Implementado | `src/dispatch/domain/services/decision-maker.ts` |
+| DD-02 §7 | ConfirmDispatch: transacción ACID + SELECT FOR UPDATE (W-5) + eventos | Implementado | `src/dispatch/application/confirm-dispatch.use-case.ts` |
 | DD-02 §8 | IDistanceProvider con tres niveles de degradación | Implementado | `src/dispatch/infrastructure/providers/haversine-distance.provider.ts` (ADR-001) |
 | DD-02 §9 | IFlagProvider para pesos sin redeployment | Implementado | `src/dispatch/infrastructure/providers/local-flag.provider.ts` (ADR-002) |
 | DD-02 §10 | TestContextGuard como stub de auth | Implementado | `src/common/guards/test-context.guard.ts` (ADR-003) |

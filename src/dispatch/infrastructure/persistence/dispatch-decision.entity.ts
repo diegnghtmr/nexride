@@ -21,6 +21,14 @@ export class DispatchDecisionEntity {
   @Column({ name: 'original_lng', type: 'double precision' })
   originalLng!: number;
 
+  /** Destination latitude — persisted for trip creation at confirm time (nullable for back-compat) */
+  @Column({ name: 'destination_lat', type: 'double precision', nullable: true })
+  destinationLat?: number | null;
+
+  /** Destination longitude */
+  @Column({ name: 'destination_lng', type: 'double precision', nullable: true })
+  destinationLng?: number | null;
+
   /** Suggested safe-point latitude (nullable — only set when suggestion was shown) */
   @Column({ name: 'suggested_lat', type: 'double precision', nullable: true })
   suggestedLat?: number | null;

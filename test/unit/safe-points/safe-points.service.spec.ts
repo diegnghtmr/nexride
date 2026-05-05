@@ -183,4 +183,80 @@ describe('SafePointsService', () => {
       expect(repo.findWithin).toHaveBeenCalledWith({ lat: 4.65, lng: -74.05 }, 120);
     });
   });
+
+  describe('findById()', () => {
+    it('8. findById delegates to repository returning the point', async () => {
+      repo.findById.mockResolvedValue(mockSafePoint);
+      const result = await service.findById('sp-uuid-001');
+      expect(result).toBe(mockSafePoint);
+      expect(repo.findById).toHaveBeenCalledWith('sp-uuid-001');
+    });
+
+    it('9. findById returns null when not found', async () => {
+      repo.findById.mockResolvedValue(null);
+      const result = await service.findById('nonexistent');
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('update() — edge cases', () => {
+    it('10. update throws NotFoundException when point not found', async () => {
+      const { NotFoundException } = await import('@nestjs/common');
+      repo.findById.mockResolvedValue(null);
+
+      await expect(
+        service.update('nonexistent', { reason: 'valid reason', updatedBy: 'user-1' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('11. update throws NotFoundException when repo.update returns null', async () => {
+      const { NotFoundException } = await import('@nestjs/common');
+      repo.findById.mockResolvedValue(mockSafePoint);
+      repo.update.mockResolvedValue(null);
+
+      await expect(
+        service.update('sp-uuid-001', { reason: 'valid reason', updatedBy: 'user-1' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('deactivate() — edge cases', () => {
+    it('12. deactivate throws SafePointReasonRequiredError when reason is empty', async () => {
+      await expect(service.deactivate('sp-uuid-001', '', 'user-1')).rejects.toBeInstanceOf(
+        SafePointReasonRequiredError,
+      );
+    });
+
+    it('13. deactivate throws NotFoundException when point not found', async () => {
+      const { NotFoundException } = await import('@nestjs/common');
+      repo.findById.mockResolvedValue(null);
+
+      await expect(service.deactivate('nonexistent', 'valid reason', 'user-1')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it('14. deactivate throws NotFoundException when repo.update returns null', async () => {
+      const { NotFoundException } = await import('@nestjs/common');
+      repo.findById.mockResolvedValue(mockSafePoint);
+      repo.update.mockResolvedValue(null);
+
+      await expect(service.deactivate('sp-uuid-001', 'valid reason', 'user-1')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('delete() — edge cases', () => {
+    it('15. delete throws SafePointReasonRequiredError when reason is empty', async () => {
+      await expect(service.delete('sp-uuid-001', '', 'user-1')).rejects.toBeInstanceOf(SafePointReasonRequiredError);
+    });
+
+    it('16. delete throws NotFoundException when point not found', async () => {
+      const { NotFoundException } = await import('@nestjs/common');
+      repo.findById.mockResolvedValue(null);
+
+      await expect(service.delete('nonexistent', 'valid reason', 'user-1')).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
 });

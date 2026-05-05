@@ -5,6 +5,7 @@ import { IDecisionRepository } from '../../common/interfaces/IDecisionRepository
 import { ITripService } from '../../common/interfaces/ITripService';
 import { RequestNotFoundError, RequestAlreadyConfirmedError } from '../../common/errors/domain-error';
 import { DispatchEventName } from '../../common/events/event-names';
+import { DispatchDecisionEntity } from '../infrastructure/persistence/dispatch-decision.entity';
 
 export interface ConfirmDispatchInput {
   requestId: string;
@@ -32,22 +33,34 @@ export class ConfirmDispatchUseCase {
   async execute(input: ConfirmDispatchInput): Promise<ConfirmDispatchOutput> {
     const startMs = Date.now();
 
-    // Load existing decision
+    // Load existing decision for pre-flight check (no lock yet)
     const decision = await this.decisionRepo.findByRequestId(input.requestId);
     if (!decision) {
       throw new RequestNotFoundError(`Request ${input.requestId} not found`, { requestId: input.requestId });
     }
 
-    // Check already confirmed
-    const decisionAny = decision as typeof decision & { tripId?: string };
-    if (decisionAny.tripId) {
-      throw new RequestAlreadyConfirmedError(`Request ${input.requestId} already confirmed`, {
-        requestId: input.requestId,
-      });
-    }
+    // Execute transaction: SELECT FOR UPDATE → idempotency check → create trip → update decision
+    const { trip, vehicleId } = await this.dataSource.transaction(async (manager) => {
+      // W-5: Acquire pessimistic write lock inside the transaction to prevent
+      // double-confirm race conditions. SELECT FOR UPDATE blocks concurrent
+      // transactions until this one completes.
+      const lockedEntity = await manager
+        .createQueryBuilder(DispatchDecisionEntity, 'd')
+        .setLock('pessimistic_write')
+        .where('d.request_id = :id', { id: input.requestId })
+        .getOne();
 
-    // Execute transaction: create trip + update decision atomically
-    const trip = await this.dataSource.transaction(async (manager) => {
+      if (!lockedEntity) {
+        throw new RequestNotFoundError(`Request ${input.requestId} not found`, { requestId: input.requestId });
+      }
+
+      // Idempotency check must be inside the lock to prevent races
+      if (lockedEntity.tripId) {
+        throw new RequestAlreadyConfirmedError(`Request ${input.requestId} already confirmed`, {
+          requestId: input.requestId,
+        });
+      }
+
       // Determine pickup location
       const pickupLocation =
         input.choice === 'suggested' && decision.suggestedPointId
@@ -58,7 +71,7 @@ export class ConfirmDispatchUseCase {
       const newTrip = await this.tripService.createMinimum({
         requestId: input.requestId,
         riderId: decision.riderId,
-        vehicleId: decision.winnerVehicleId,
+        vehicleId: lockedEntity.vehicleId,
         origin: decision.origin,
         destination: decision.destination,
         pickupLocation,
@@ -66,7 +79,7 @@ export class ConfirmDispatchUseCase {
         suggestedPointId: input.choice === 'suggested' ? decision.suggestedPointId : undefined,
       });
 
-      // Update decision record
+      // Update decision record within the same transaction connection
       await manager.query(
         `UPDATE dispatch_decisions
          SET trip_id = $1, user_choice = $2, confirmed_at = now()
@@ -74,7 +87,7 @@ export class ConfirmDispatchUseCase {
         [newTrip.id, input.choice, input.requestId],
       );
 
-      return newTrip;
+      return { trip: newTrip, vehicleId: lockedEntity.vehicleId };
     });
 
     const durationMs = Date.now() - startMs;
@@ -84,7 +97,7 @@ export class ConfirmDispatchUseCase {
       tripId: trip.id,
       requestId: input.requestId,
       riderId: decision.riderId,
-      vehicleId: decision.winnerVehicleId,
+      vehicleId,
       pickupType: input.choice,
       suggestedPointId: input.choice === 'suggested' ? decision.suggestedPointId : undefined,
       ts: new Date().toISOString(),
@@ -94,7 +107,7 @@ export class ConfirmDispatchUseCase {
       requestId: input.requestId,
       tripId: trip.id,
       durationMs,
-      winnerVehicleId: decision.winnerVehicleId,
+      winnerVehicleId: vehicleId,
       fallback: !!decision.fallbackReason,
     });
 
@@ -121,7 +134,7 @@ export class ConfirmDispatchUseCase {
 
     return {
       tripId: trip.id,
-      vehicleId: decision.winnerVehicleId,
+      vehicleId,
       pickupType: input.choice,
       status: 'assigned',
     };
