@@ -25,7 +25,10 @@ export class FallbackHandler {
     // Skip telemetry staleness check in degraded fallback mode
     const viable = candidates.filter(
       (v: VehicleCandidate) =>
-        v.batteryLevelPct >= this.cfg.fallbackMinBatteryPct && v.eligible === true && v.status === 'available',
+        v.batteryLevelPct >= this.cfg.fallbackMinBatteryPct &&
+        v.eligible === true &&
+        // 'in_service' and 'available' are both operational; only out_of_service is excluded.
+        (v.status === 'available' || v.status === 'in_service'),
     );
 
     if (viable.length === 0) {

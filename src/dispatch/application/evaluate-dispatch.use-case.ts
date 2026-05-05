@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { createId } from '@paralleldrive/cuid2';
+import { randomUUID } from 'node:crypto';
 import { CandidateGenerator } from '../domain/services/candidate-generator';
 import { CandidateFilter } from '../domain/services/candidate-filter';
 import { ScoringEngine } from '../domain/services/scoring-engine';
@@ -72,7 +72,7 @@ export class EvaluateDispatchUseCase {
   }
 
   async execute(input: EvaluateDispatchInput): Promise<EvaluateDispatchOutput> {
-    const requestId = createId();
+    const requestId = randomUUID();
     const startMs = Date.now();
     const ts = new Date().toISOString();
 

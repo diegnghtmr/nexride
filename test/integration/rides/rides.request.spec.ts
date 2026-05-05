@@ -46,11 +46,7 @@ const SAFE_POINT_OUTSIDE = {
   safetyScore: 0.9,
 };
 
-// SKIPPED — see SCOPE.md §4 "Integration test seed bug". The test code is
-// retained as reference contract; unit tests (158 green) cover the dispatch
-// pipeline behavior end-to-end at the use-case level. Re-enable after local
-// Docker reproduction confirms the seed/Redis-connection root cause.
-describe.skip('POST /rides/request (integration)', () => {
+describe('POST /rides/request (integration)', () => {
   let pgContainer: StartedPostgreSqlContainer;
   let redisContainer: StartedRedisContainer;
   let app: INestApplication;

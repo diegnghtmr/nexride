@@ -34,7 +34,13 @@ export class CandidateGenerator {
           batteryPct: v.batteryLevelPct,
           autonomyKm: v.rangeKm,
           eligibility: v.eligible ? 'eligible' : 'not_eligible',
-          state: v.status === 'available' ? 'available' : v.status === 'out_of_service' ? 'out_of_service' : 'busy',
+          // 'in_service' is the canonical operational state in fleet seeds and equals 'available' for dispatch purposes.
+          state:
+            v.status === 'available' || v.status === 'in_service'
+              ? 'available'
+              : v.status === 'out_of_service'
+                ? 'out_of_service'
+                : 'busy',
           telemetryAt: new Date(v.lastTelemetryAt),
         }),
     );
