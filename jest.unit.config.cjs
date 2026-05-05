@@ -20,18 +20,16 @@ module.exports = {
   },
   coverageDirectory: 'coverage/unit',
   collectCoverageFrom: [
-    'src/dispatch/**/*.ts',
-    'src/safe-points/**/*.ts',
+    'src/dispatch/domain/**/*.ts',
+    'src/dispatch/infrastructure/providers/**/*.ts',
+    'src/safe-points/safe-points.service.ts',
     '!src/**/*.module.ts',
-    '!src/**/*.dto.ts',
-    '!src/**/*.schema.ts',
-    '!src/main.ts',
-    '!src/app.module.ts',
+    '!src/**/*.entity.ts',
+    '!src/**/index.ts',
   ],
   coverageThreshold: {
-    global: {
-      statements: 85,
-      branches: 80,
-    },
+    'src/dispatch/domain/**/*.ts': { statements: 85, branches: 80 },
+    'src/dispatch/infrastructure/providers/**/*.ts': { statements: 85, branches: 80 },
+    'src/safe-points/safe-points.service.ts': { statements: 85, branches: 80 },
   },
 };

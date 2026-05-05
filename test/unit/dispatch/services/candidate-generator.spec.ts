@@ -105,6 +105,44 @@ describe('CandidateGenerator', () => {
     expect(result.vehicles[0].state).toBe('busy');
   });
 
+  it('maps vehicle status out_of_service to out_of_service state', async () => {
+    const oosVehicle = { ...makeSharedVehicle('VH-OOS'), status: 'out_of_service' as const };
+    const fleetSvc: jest.Mocked<IFleetService> = {
+      findCandidatesInRadius: jest.fn().mockResolvedValue([oosVehicle]),
+      getVehicleSnapshot: jest.fn(),
+    };
+    const safePointsSvc: jest.Mocked<ISafePointsService> = {
+      findWithin: jest.fn().mockResolvedValue([]),
+      findById: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      deactivate: jest.fn(),
+      delete: jest.fn(),
+    };
+    const generator = new CandidateGenerator(fleetSvc, safePointsSvc, cfg);
+    const result = await generator.generate(origin);
+    expect(result.vehicles[0].state).toBe('out_of_service');
+  });
+
+  it('maps ineligible vehicle to not_eligible eligibility', async () => {
+    const ineligibleVehicle = { ...makeSharedVehicle('VH-NE'), eligible: false };
+    const fleetSvc: jest.Mocked<IFleetService> = {
+      findCandidatesInRadius: jest.fn().mockResolvedValue([ineligibleVehicle]),
+      getVehicleSnapshot: jest.fn(),
+    };
+    const safePointsSvc: jest.Mocked<ISafePointsService> = {
+      findWithin: jest.fn().mockResolvedValue([]),
+      findById: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      deactivate: jest.fn(),
+      delete: jest.fn(),
+    };
+    const generator = new CandidateGenerator(fleetSvc, safePointsSvc, cfg);
+    const result = await generator.generate(origin);
+    expect(result.vehicles[0].eligibility).toBe('not_eligible');
+  });
+
   it('returns empty arrays when both services return no results', async () => {
     const fleetSvc: jest.Mocked<IFleetService> = {
       findCandidatesInRadius: jest.fn().mockResolvedValue([]),
