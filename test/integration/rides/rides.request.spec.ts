@@ -28,6 +28,10 @@ import { DispatchEventName } from '../../../src/common/events/event-names';
 const ORIGIN = { lat: 4.65, lng: -74.05 };
 const DESTINATION = { lat: 4.7, lng: -74.06 };
 
+// UUIDs for safe points (column type is uuid)
+const SP_NEAR_HIGH_ID = '11111111-1111-1111-1111-111111111111';
+const SP_OUTSIDE_ID = '22222222-2222-2222-2222-222222222222';
+
 // Safe point at ~100m from origin, high safety score → should generate suggestion
 const SAFE_POINT_NEAR_HIGH_SAFETY = {
   lat: 4.6509, // ~100m north
@@ -97,9 +101,9 @@ describe('POST /rides/request (integration)', () => {
     await dataSource.query(`
       INSERT INTO safe_points (id, name, reason, zone_id, safety_score, status, location, created_at, updated_at)
       VALUES
-        ('sp-near-high', 'Punto Seguro Cercano', 'Iluminación óptima', 'zona-1', ${SAFE_POINT_NEAR_HIGH_SAFETY.safetyScore}, 'active',
+        ('${SP_NEAR_HIGH_ID}', 'Punto Seguro Cercano', 'Iluminación óptima', 'zona-1', ${SAFE_POINT_NEAR_HIGH_SAFETY.safetyScore}, 'active',
          ST_GeographyFromText('SRID=4326;POINT(${SAFE_POINT_NEAR_HIGH_SAFETY.lng} ${SAFE_POINT_NEAR_HIGH_SAFETY.lat})'), now(), now()),
-        ('sp-outside', 'Punto Fuera Radio', 'Zona amplia', 'zona-1', ${SAFE_POINT_OUTSIDE.safetyScore}, 'active',
+        ('${SP_OUTSIDE_ID}', 'Punto Fuera Radio', 'Zona amplia', 'zona-1', ${SAFE_POINT_OUTSIDE.safetyScore}, 'active',
          ST_GeographyFromText('SRID=4326;POINT(${SAFE_POINT_OUTSIDE.lng} ${SAFE_POINT_OUTSIDE.lat})'), now(), now())
     `);
 
@@ -161,7 +165,7 @@ describe('POST /rides/request (integration)', () => {
     expect(response.body.original).toBeDefined();
     expect(response.body.original.vehicleId).toBeDefined();
     expect(response.body.suggested).toBeDefined();
-    expect(response.body.suggested.safePointId).toBe('sp-near-high');
+    expect(response.body.suggested.safePointId).toBe(SP_NEAR_HIGH_ID);
     expect(response.body.suggested.walkingDistanceM).toBeLessThan(120);
   });
 

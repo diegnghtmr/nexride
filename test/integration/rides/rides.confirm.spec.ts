@@ -82,7 +82,7 @@ describe('POST /rides/confirm (integration)', () => {
     // Seed safe point that meets suggestion threshold (safety=0.85, ~100m from origin)
     await dataSource.query(`
       INSERT INTO safe_points (id, name, reason, zone_id, safety_score, status, location, created_at, updated_at)
-      VALUES ('sp-confirm-test', 'Test Safe Point', 'Testing', 'zona-1', 0.85, 'active',
+      VALUES ('33333333-3333-3333-3333-333333333333', 'Test Safe Point', 'Testing', 'zona-1', 0.85, 'active',
         ST_GeographyFromText('SRID=4326;POINT(-74.05 4.6509)'), now(), now())
     `);
 
