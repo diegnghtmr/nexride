@@ -12,3 +12,4 @@ openapi.json
 reports/
 .nyc_output/
 tmp/
+.claude/
