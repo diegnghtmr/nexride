@@ -27,9 +27,7 @@ export class CreateDispatchDecisions1700000002 implements MigrationInterface {
     await queryRunner.query(
       `CREATE INDEX dispatch_decisions_rider_idx ON dispatch_decisions (rider_id, created_at DESC)`,
     );
-    await queryRunner.query(
-      `CREATE INDEX dispatch_decisions_suggestion_idx ON dispatch_decisions (suggestion_status)`,
-    );
+    await queryRunner.query(`CREATE INDEX dispatch_decisions_suggestion_idx ON dispatch_decisions (suggestion_status)`);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
