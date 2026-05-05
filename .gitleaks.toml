@@ -1,0 +1,20 @@
+title = "NexRide Gitleaks Config"
+
+[allowlist]
+  description = "Allowlisted files"
+  paths = [
+    '''.env.example''',
+    '''.*\.md$''',
+  ]
+
+[[rules]]
+  description = "DATABASE_URL with credentials"
+  id = "nexride-database-url"
+  regex = '''DATABASE_URL\s*=\s*postgresql://[^:]+:[^@]+@'''
+  tags = ["key", "database"]
+
+[[rules]]
+  description = "REDIS_URL with credentials"
+  id = "nexride-redis-url"
+  regex = '''REDIS_URL\s*=\s*redis://[^:]+:[^@]+@'''
+  tags = ["key", "redis"]
