@@ -12,6 +12,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { TestContextGuard, RequiredRoles } from '../common/guards/test-context.guard';
 import { RbacGuard } from '../common/guards/rbac.guard';
@@ -33,12 +34,15 @@ type AuthenticatedRequest = Request & { user?: { id: string; role: string } };
  * TestContextGuard handles authentication (injects req.user from headers).
  * RbacGuard enforces roles based on @RequiredRoles() decorator metadata.
  */
+@ApiTags('safe-points')
 @UseGuards(TestContextGuard, RbacGuard)
 @Controller('safe-points')
 export class SafePointsController {
   constructor(private readonly safePointsService: SafePointsService) {}
 
   @Get('within')
+  @ApiOperation({ summary: 'Find safe points within a radius' })
+  @ApiResponse({ status: 200, description: 'List of safe points within radius' })
   async findWithin(@Query() query: FindWithinQueryDto): Promise<SafePoint[]> {
     return this.safePointsService.findWithin({ lat: query.lat, lng: query.lng }, query.radiusM ?? 120);
   }
@@ -46,6 +50,9 @@ export class SafePointsController {
   @Post()
   @RequiredRoles('supervisor', 'administrador')
   @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create a safe point' })
+  @ApiResponse({ status: 201, description: 'Safe point created' })
+  @ApiResponse({ status: 403, description: 'Forbidden — role must be supervisor or administrador' })
   async create(@Body() dto: CreateSafePointDto, @Req() req: AuthenticatedRequest): Promise<SafePoint> {
     const actorId = req.user?.id ?? 'unknown';
     return this.safePointsService.create({
@@ -60,6 +67,10 @@ export class SafePointsController {
 
   @Patch(':id')
   @RequiredRoles('supervisor', 'administrador')
+  @ApiOperation({ summary: 'Update a safe point (requires reason for audit)' })
+  @ApiResponse({ status: 200, description: 'Safe point updated' })
+  @ApiResponse({ status: 400, description: 'Missing reason field' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateSafePointDto,
@@ -80,6 +91,9 @@ export class SafePointsController {
   @Delete(':id')
   @RequiredRoles('supervisor', 'administrador')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a safe point (requires reason for audit)' })
+  @ApiResponse({ status: 204, description: 'Safe point deleted' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
   async delete(
     @Param('id') id: string,
     @Query('reason') reason: string,
