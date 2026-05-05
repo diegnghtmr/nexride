@@ -8,7 +8,7 @@ function makePreliminary(overrides: Partial<PreliminaryDecision> = {}): Prelimin
     requestId: 'req-001',
     riderId: 'rider-001',
     origin: { lat: 4.65, lng: -74.05 },
-    destination: { lat: 4.70, lng: -74.06 },
+    destination: { lat: 4.7, lng: -74.06 },
     winnerVehicleId: 'VH-001',
     suggestedPointId: undefined,
     scoresJson: { proximity: 0.6, energy: 0.8 },

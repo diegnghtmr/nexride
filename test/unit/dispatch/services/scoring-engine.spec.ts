@@ -9,7 +9,7 @@ import { Score } from '../../../../src/dispatch/domain/value-objects/score.vo';
 // Shared GeoPoint for "same location" (origin = vehicle location → ETA = 0)
 const origin = GeoPoint.of(4.65, -74.05);
 const nearVehicleLoc = GeoPoint.of(4.65, -74.05); // same as origin → ETA=0 in mock
-const farVehicleLoc = GeoPoint.of(4.70, -74.10);
+const farVehicleLoc = GeoPoint.of(4.7, -74.1);
 
 function makeVehicle(overrides: Partial<ConstructorParameters<typeof VehicleCandidate>[0]> = {}): VehicleCandidate {
   return new VehicleCandidate({
@@ -90,13 +90,8 @@ describe('ScoringEngine', () => {
     const provider = makeDistanceProvider(0);
     const engine = new ScoringEngine(provider, cfg);
     const tripDistanceKm = 10;
-    const requiredWithReserve = tripDistanceKm * (1 + cfg.fleet.minimumReservePct / 100);
-    // autonomy = requiredWithReserve → clamp(autonomy / (required * 1.15)) = clamp(1) = 1
-    // Wait — minimumReservePct in config is 0.15 (as fractional), not percentage
-    // The formula: energy = clamp01( autonomy / (required × (1 + cfg.fleet.minimumReservePct/100)) )
-    // With minimumReservePct=0.15: (1 + 0.15/100) = 1.0015, not 1.15
     // From design §3: reserve_pct = 0.15 → energy = clamp01(available_range_km / (required_km * (1 + reserve_pct)))
-    // So the formula uses minimumReservePct directly as fraction (not /100): factor = 1 + 0.15 = 1.15
+    // minimumReservePct in config is 0.15 (fraction, not percentage): factor = 1 + 0.15 = 1.15
     const actualFactor = 1 + cfg.fleet.minimumReservePct; // 1 + 0.15 = 1.15
     const autonomy = tripDistanceKm * actualFactor; // 11.5 km → energy = 1
     const vehicle = makeVehicle({ autonomyKm: autonomy });

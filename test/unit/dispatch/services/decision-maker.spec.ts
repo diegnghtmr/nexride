@@ -1,4 +1,8 @@
-import { DecisionMaker, ScoredCombo, DispatchDecisionDraft } from '../../../../src/dispatch/domain/services/decision-maker';
+import {
+  DecisionMaker,
+  ScoredCombo,
+  DispatchDecisionDraft,
+} from '../../../../src/dispatch/domain/services/decision-maker';
 import { loadDispatchConfig } from '../../../../src/common/config/dispatch.config';
 
 function makeCombo(overrides: Partial<ScoredCombo> = {}): ScoredCombo {

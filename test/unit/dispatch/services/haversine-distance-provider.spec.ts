@@ -25,7 +25,7 @@ function makeConfig(overrides: Partial<DispatchConfig> = {}): DispatchConfig {
 }
 
 const origin = GeoPoint.of(4.65, -74.05);
-const destination = GeoPoint.of(4.70, -74.10);
+const destination = GeoPoint.of(4.7, -74.1);
 
 describe('HaversineDistanceProvider', () => {
   // Test 1: Cache miss → computes Haversine, writes to cache, returns 'haversine' source

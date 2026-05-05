@@ -43,7 +43,7 @@ describe('FallbackHandler', () => {
       id: 'VH-FAR',
       batteryLevelPct: 60,
       distanceFromOriginM: 800,
-      location: { lat: 4.660, lng: -74.060 },
+      location: { lat: 4.66, lng: -74.06 },
     });
     const fleet = makeFleetService([farVehicle, nearVehicle]); // near is second in array
     const handler = new FallbackHandler(fleet, defaultCfg);
