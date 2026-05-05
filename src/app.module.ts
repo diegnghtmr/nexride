@@ -7,6 +7,12 @@ import { LoggerModule } from 'nestjs-pino';
 import { DomainExceptionFilter } from './common/filters/domain-exception.filter';
 import { RequestIdMiddleware } from './common/observability/request-id.middleware';
 import { buildPinoConfig } from './common/observability/pino.config';
+import { SafePointsModule } from './safe-points/safe-points.module';
+import { FleetModule } from './fleet/fleet.module';
+import { SafePointEntity } from './safe-points/infrastructure/safe-point.entity';
+import { SafePointAuditEntity } from './safe-points/infrastructure/safe-point-audit.entity';
+import { EnablePostgis1700000000 } from './migrations/1700000000-EnablePostgis';
+import { CreateSafePoints1700000001 } from './migrations/1700000001-CreateSafePoints';
 
 @Module({
   imports: [
@@ -19,7 +25,7 @@ import { buildPinoConfig } from './common/observability/pino.config';
     // Structured logging via pino (design §8)
     LoggerModule.forRoot(buildPinoConfig()),
 
-    // TypeORM — placeholder; full config added in Phase 3 after entities are ready
+    // TypeORM — env-driven config; migrations registered (design §5)
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -27,6 +33,9 @@ import { buildPinoConfig } from './common/observability/pino.config';
         url: configService.get<string>('DATABASE_URL'),
         autoLoadEntities: true,
         synchronize: false,
+        migrations: [EnablePostgis1700000000, CreateSafePoints1700000001],
+        migrationsRun: false, // run explicitly via `npm run migrate`
+        entities: [SafePointEntity, SafePointAuditEntity],
       }),
       inject: [ConfigService],
     }),
@@ -38,6 +47,10 @@ import { buildPinoConfig } from './common/observability/pino.config';
       maxListeners: 20,
       verboseMemoryLeak: true,
     }),
+
+    // Feature modules
+    SafePointsModule,
+    FleetModule,
   ],
 
   providers: [

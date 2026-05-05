@@ -4,7 +4,8 @@ export interface CreateSafePointInput {
   name: string;
   location: GeoPoint;
   zoneId: string;
-  reason: string;
+  /** Intentionally optional — service enforces presence and throws SafePointReasonRequiredError */
+  reason?: string;
   safetyScore: number;
   createdBy: string;
 }
@@ -15,7 +16,8 @@ export interface UpdateSafePointInput {
   zoneId?: string;
   safetyScore?: number;
   status?: 'active' | 'inactive';
-  reason: string; // required for audit
+  /** Intentionally optional — service enforces presence and throws SafePointReasonRequiredError */
+  reason?: string;
   updatedBy: string;
 }
 

@@ -11,6 +11,8 @@ export interface VehicleSnapshot {
   lastTelemetryAt: number; // epoch ms
   rangeKm: number;
   location: GeoPoint;
+  /** True when snapshot_at is older than FLEET_TELEMETRY_STALENESS_SEC (EH risk #1) */
+  telemetryStale: boolean;
 }
 
 export interface VehicleCandidate extends VehicleSnapshot {
