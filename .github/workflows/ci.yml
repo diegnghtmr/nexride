@@ -137,6 +137,24 @@ jobs:
   build-openapi:
     runs-on: ubuntu-latest
     needs: lint-typecheck
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: nexride_openapi
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -148,7 +166,7 @@ jobs:
       - run: npm run openapi:generate
         env:
           NODE_ENV: development
-          DATABASE_URL: postgresql://localhost/nexride_dev
+          DATABASE_URL: postgresql://postgres:test@localhost:5432/nexride_openapi
           REDIS_URL: redis://localhost:6379
       - uses: actions/upload-artifact@v4
         with:
