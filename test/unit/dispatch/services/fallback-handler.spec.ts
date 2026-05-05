@@ -89,14 +89,15 @@ describe('FallbackHandler', () => {
     expect(result.vehicleId).toBe('VH-GOOD');
   });
 
-  // Test 5: Filters out non-available vehicles
-  it('ignores non-available vehicles in fallback mode', async () => {
-    const busyVehicle = makeVehicleSnapshot({ id: 'VH-BUSY', batteryLevelPct: 80, status: 'in_service' });
-    const availableVehicle = makeVehicleSnapshot({ id: 'VH-FREE', batteryLevelPct: 30, status: 'available' });
-    const fleet = makeFleetService([busyVehicle, availableVehicle]);
+  // Test 5: Excludes only out_of_service vehicles; both 'available' and
+  // 'in_service' (canonical fleet seed state) are accepted as operational.
+  it('excludes only out_of_service vehicles in fallback mode', async () => {
+    const oosVehicle = makeVehicleSnapshot({ id: 'VH-OOS', batteryLevelPct: 80, status: 'out_of_service' });
+    const inServiceVehicle = makeVehicleSnapshot({ id: 'VH-NEAR', batteryLevelPct: 30, status: 'in_service' });
+    const fleet = makeFleetService([oosVehicle, inServiceVehicle]);
     const handler = new FallbackHandler(fleet, defaultCfg);
 
     const result = await handler.fallback(origin, 'timeout');
-    expect(result.vehicleId).toBe('VH-FREE');
+    expect(result.vehicleId).toBe('VH-NEAR');
   });
 });

@@ -86,10 +86,14 @@ describe('CandidateGenerator', () => {
     await expect(generator.generate(origin)).rejects.toThrow('Redis down');
   });
 
-  it('maps vehicle status in_service to busy state', async () => {
-    const busyVehicle = { ...makeSharedVehicle('VH-BUSY'), status: 'in_service' as const };
+  it("maps vehicle status 'in_service' to 'available' (canonical operational state)", async () => {
+    // Fleet seeds use 'in_service' as the canonical operational status (see
+    // src/fleet/infrastructure/fleet.seed.ts). For dispatch domain purposes,
+    // 'in_service' and 'available' are equivalent — both mean operational and
+    // ready to receive a trip. Only 'out_of_service' is excluded.
+    const inServiceVehicle = { ...makeSharedVehicle('VH-IN-SERVICE'), status: 'in_service' as const };
     const fleetSvc: jest.Mocked<IFleetService> = {
-      findCandidatesInRadius: jest.fn().mockResolvedValue([busyVehicle]),
+      findCandidatesInRadius: jest.fn().mockResolvedValue([inServiceVehicle]),
       getVehicleSnapshot: jest.fn(),
     };
     const safePointsSvc: jest.Mocked<ISafePointsService> = {
@@ -102,7 +106,7 @@ describe('CandidateGenerator', () => {
     };
     const generator = new CandidateGenerator(fleetSvc, safePointsSvc, cfg);
     const result = await generator.generate(origin);
-    expect(result.vehicles[0].state).toBe('busy');
+    expect(result.vehicles[0].state).toBe('available');
   });
 
   it('maps vehicle status out_of_service to out_of_service state', async () => {
