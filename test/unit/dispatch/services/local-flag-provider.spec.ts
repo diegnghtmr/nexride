@@ -44,31 +44,41 @@ describe('LocalFlagProvider', () => {
   // S-2: cover string-coercion branch in getBoolean ('1'/'0')
   it('returns true when value is string "1"', () => {
     // Inject a synthetic config with a string '1' value
-    const syntheticCfg = { featureFlag: '1' } as unknown as ReturnType<typeof import('../../../../src/common/config/dispatch.config').loadDispatchConfig>;
+    const syntheticCfg = { featureFlag: '1' } as unknown as ReturnType<
+      typeof import('../../../../src/common/config/dispatch.config').loadDispatchConfig
+    >;
     const provider = new LocalFlagProvider(syntheticCfg);
     expect(provider.getBoolean('featureFlag', false)).toBe(true);
   });
 
   it('returns false when value is string "0"', () => {
-    const syntheticCfg = { featureFlag: '0' } as unknown as ReturnType<typeof import('../../../../src/common/config/dispatch.config').loadDispatchConfig>;
+    const syntheticCfg = { featureFlag: '0' } as unknown as ReturnType<
+      typeof import('../../../../src/common/config/dispatch.config').loadDispatchConfig
+    >;
     const provider = new LocalFlagProvider(syntheticCfg);
     expect(provider.getBoolean('featureFlag', true)).toBe(false);
   });
 
   it('returns false when value is string "false"', () => {
-    const syntheticCfg = { featureFlag: 'false' } as unknown as ReturnType<typeof import('../../../../src/common/config/dispatch.config').loadDispatchConfig>;
+    const syntheticCfg = { featureFlag: 'false' } as unknown as ReturnType<
+      typeof import('../../../../src/common/config/dispatch.config').loadDispatchConfig
+    >;
     const provider = new LocalFlagProvider(syntheticCfg);
     expect(provider.getBoolean('featureFlag', true)).toBe(false);
   });
 
   it('returns true when value is string "true"', () => {
-    const syntheticCfg = { featureFlag: 'true' } as unknown as ReturnType<typeof import('../../../../src/common/config/dispatch.config').loadDispatchConfig>;
+    const syntheticCfg = { featureFlag: 'true' } as unknown as ReturnType<
+      typeof import('../../../../src/common/config/dispatch.config').loadDispatchConfig
+    >;
     const provider = new LocalFlagProvider(syntheticCfg);
     expect(provider.getBoolean('featureFlag', false)).toBe(true);
   });
 
   it('returns fallback when value is a non-boolean non-string type', () => {
-    const syntheticCfg = { featureFlag: 42 } as unknown as ReturnType<typeof import('../../../../src/common/config/dispatch.config').loadDispatchConfig>;
+    const syntheticCfg = { featureFlag: 42 } as unknown as ReturnType<
+      typeof import('../../../../src/common/config/dispatch.config').loadDispatchConfig
+    >;
     const provider = new LocalFlagProvider(syntheticCfg);
     expect(provider.getBoolean('featureFlag', true)).toBe(true);
   });

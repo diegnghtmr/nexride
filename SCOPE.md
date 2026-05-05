@@ -100,7 +100,15 @@ Estas adaptaciones mantienen el contrato de arquitectura del DD-01 y DD-02 mient
 
 ---
 
-## 4. Variances (CI vs producción)
+## 4. Aclaraciones semánticas de frontera (DE-04 y mejora relativa)
+
+**Boundary DE-04 — `walking < 120m`**: La condición de sugerencia en `DecisionMaker` usa `<` (estrictamente menor que) con 120 m. La prosa del proposal usa `≤120m` como abreviatura coloquial, pero el escenario contractual DE-04 especifica el caso límite con `walkingDistanceM = 119.9` pasando y `120.0` fallando. La implementación en `decision-maker.ts` respeta el operador `<` de la especificación.
+
+**Boundary mejora relativa de seguridad — float epsilon**: La condición `safetyImprovement >= 0.15` (≥15% mejora relativa) se evalúa con épsilon `1e-9` para manejar la aritmética de punto flotante de JavaScript. Por ejemplo, `0.30 × 1.15 = 0.34499999...` en IEEE 754, por lo que la comparación `improvement >= threshold - 1e-9` evita falsos negativos por errores de representación binaria. Los 10 casos en `decision-maker.spec.ts` cubren los límites exactos.
+
+---
+
+## 5. Variances (CI vs producción)
 
 | Métrica | Umbral CI | Objetivo producción | Referencia |
 |---|---|---|---|
@@ -115,7 +123,7 @@ Las 15 vulnerabilidades `high` en `npm audit` provienen del grafo de dependencia
 
 ---
 
-## 5. Reproducibilidad
+## 6. Reproducibilidad
 
 ```bash
 # Setup (crear .env con los valores de Variables de Ambiente en README.md)
@@ -137,6 +145,6 @@ npm audit --audit-level=critical
 
 ---
 
-## 6. Enlace a matriz de trazabilidad por documento
+## 7. Enlace a matriz de trazabilidad por documento
 
 Ver `docs/traceability-matrix.md` para la misma información ordenada por documento fuente (TRD §X / RFC / DD-01 / DD-02).

@@ -95,9 +95,6 @@ function makeEventEmitter(): jest.Mocked<EventEmitter2> {
 describe('ConfirmDispatchUseCase — W-5 SELECT FOR UPDATE', () => {
   it('calls createQueryBuilder with pessimistic_write lock inside the transaction', async () => {
     const dataSource = makeDataSource(BASE_ENTITY);
-    const manager = (dataSource.transaction as jest.Mock).mock.calls[0]?.[0]
-      ? undefined
-      : null;
     // We capture the manager via the transaction mock
     let capturedManager: EntityManager | undefined;
     (dataSource.transaction as jest.Mock).mockImplementationOnce(async (cb: (m: EntityManager) => Promise<unknown>) => {
@@ -119,7 +116,10 @@ describe('ConfirmDispatchUseCase — W-5 SELECT FOR UPDATE', () => {
     );
 
     // The query builder must have had pessimistic_write lock set
-    const qb = (capturedManager as jest.Mocked<EntityManager>).createQueryBuilder(DispatchDecisionEntity, 'd') as jest.Mocked<SelectQueryBuilder<DispatchDecisionEntity>>;
+    const qb = (capturedManager as jest.Mocked<EntityManager>).createQueryBuilder(
+      DispatchDecisionEntity,
+      'd',
+    ) as jest.Mocked<SelectQueryBuilder<DispatchDecisionEntity>>;
     expect(qb.setLock).toHaveBeenCalledWith('pessimistic_write');
   });
 
@@ -137,9 +137,9 @@ describe('ConfirmDispatchUseCase — W-5 SELECT FOR UPDATE', () => {
     const eventEmitter = makeEventEmitter();
 
     const useCase = new ConfirmDispatchUseCase(decisionRepo, tripService, dataSource, eventEmitter);
-    await expect(useCase.execute({ requestId: 'req-999', riderId: 'rider-001', choice: 'original' })).rejects.toBeInstanceOf(
-      RequestNotFoundError,
-    );
+    await expect(
+      useCase.execute({ requestId: 'req-999', riderId: 'rider-001', choice: 'original' }),
+    ).rejects.toBeInstanceOf(RequestNotFoundError);
   });
 
   it('throws RequestAlreadyConfirmedError when locked entity has tripId set', async () => {
@@ -157,9 +157,9 @@ describe('ConfirmDispatchUseCase — W-5 SELECT FOR UPDATE', () => {
     const eventEmitter = makeEventEmitter();
 
     const useCase = new ConfirmDispatchUseCase(decisionRepo, tripService, dataSource, eventEmitter);
-    await expect(useCase.execute({ requestId: 'req-001', riderId: 'rider-001', choice: 'original' })).rejects.toBeInstanceOf(
-      RequestAlreadyConfirmedError,
-    );
+    await expect(
+      useCase.execute({ requestId: 'req-001', riderId: 'rider-001', choice: 'original' }),
+    ).rejects.toBeInstanceOf(RequestAlreadyConfirmedError);
   });
 
   it('returns assigned trip on successful confirmation', async () => {

@@ -231,7 +231,9 @@ describe('SafePointsService', () => {
       const { NotFoundException } = await import('@nestjs/common');
       repo.findById.mockResolvedValue(null);
 
-      await expect(service.deactivate('nonexistent', 'valid reason', 'user-1')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.deactivate('nonexistent', 'valid reason', 'user-1')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
 
     it('14. deactivate throws NotFoundException when repo.update returns null', async () => {
@@ -239,7 +241,9 @@ describe('SafePointsService', () => {
       repo.findById.mockResolvedValue(mockSafePoint);
       repo.update.mockResolvedValue(null);
 
-      await expect(service.deactivate('sp-uuid-001', 'valid reason', 'user-1')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.deactivate('sp-uuid-001', 'valid reason', 'user-1')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
   });
 
