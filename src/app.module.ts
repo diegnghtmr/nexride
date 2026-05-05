@@ -18,12 +18,12 @@ import { SafePointAuditEntity } from './safe-points/infrastructure/safe-point-au
 import { DispatchDecisionEntity } from './dispatch/infrastructure/persistence/dispatch-decision.entity';
 import { TripEntity } from './trip/infrastructure/trip.entity';
 import { AnalyticsEventEntity } from './analytics/infrastructure/analytics-event.entity';
-import { EnablePostgis1700000000 } from './migrations/1700000000-EnablePostgis';
-import { CreateSafePoints1700000001 } from './migrations/1700000001-CreateSafePoints';
-import { CreateDispatchDecisions1700000002 } from './migrations/1700000002-CreateDispatchDecisions';
-import { CreateTrips1700000003 } from './migrations/1700000003-CreateTrips';
-import { CreateAnalyticsEvents1700000004 } from './migrations/1700000004-CreateAnalyticsEvents';
-import { AddDestinationToDispatchDecisions1700000005 } from './migrations/1700000005-AddDestinationToDispatchDecisions';
+import { EnablePostgis17000000010000 } from './migrations/17000000010000-EnablePostgis';
+import { CreateSafePoints17000000010001 } from './migrations/17000000010001-CreateSafePoints';
+import { CreateDispatchDecisions17000000010002 } from './migrations/17000000010002-CreateDispatchDecisions';
+import { CreateTrips17000000010003 } from './migrations/17000000010003-CreateTrips';
+import { CreateAnalyticsEvents17000000010004 } from './migrations/17000000010004-CreateAnalyticsEvents';
+import { AddDestinationToDispatchDecisions17000000010005 } from './migrations/17000000010005-AddDestinationToDispatchDecisions';
 
 @Module({
   imports: [
@@ -45,12 +45,12 @@ import { AddDestinationToDispatchDecisions1700000005 } from './migrations/170000
         autoLoadEntities: true,
         synchronize: false,
         migrations: [
-          EnablePostgis1700000000,
-          CreateSafePoints1700000001,
-          CreateDispatchDecisions1700000002,
-          CreateTrips1700000003,
-          CreateAnalyticsEvents1700000004,
-          AddDestinationToDispatchDecisions1700000005,
+          EnablePostgis17000000010000,
+          CreateSafePoints17000000010001,
+          CreateDispatchDecisions17000000010002,
+          CreateTrips17000000010003,
+          CreateAnalyticsEvents17000000010004,
+          AddDestinationToDispatchDecisions17000000010005,
         ],
         migrationsRun: false, // run explicitly via `npm run migrate`
         entities: [SafePointEntity, SafePointAuditEntity, DispatchDecisionEntity, TripEntity, AnalyticsEventEntity],

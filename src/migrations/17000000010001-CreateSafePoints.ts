@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateSafePoints1700000001 implements MigrationInterface {
+export class CreateSafePoints17000000010001 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // safe_points table (design §5)
     await queryRunner.query(`

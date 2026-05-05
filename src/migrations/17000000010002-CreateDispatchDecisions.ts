@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateDispatchDecisions1700000002 implements MigrationInterface {
+export class CreateDispatchDecisions17000000010002 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       CREATE TABLE dispatch_decisions (
