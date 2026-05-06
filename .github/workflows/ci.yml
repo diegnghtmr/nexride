@@ -171,6 +171,9 @@ jobs:
 
   security-static:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -180,8 +183,9 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      # Audit level set to critical — NestJS 10 + Express transitive highs are
-      # tracked but do not have non-breaking fixes. Upgrade path: NestJS 11.
+      # Audit gate: critical severity. Production-side highs are formally accepted with
+      # CVE-by-CVE exploitability analysis and a hard NestJS 11 migration deadline (2026-07-01)
+      # in docs/adr/ADR-006-cve-deferrals.md. After 2026-07-01 this gate MUST be raised back to high.
       - run: npm audit --audit-level=critical
       - uses: gitleaks/gitleaks-action@v2
         env:

@@ -3,7 +3,11 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DataSource } from 'typeorm';
 import { IDecisionRepository } from '../../common/interfaces/IDecisionRepository';
 import { ITripService } from '../../common/interfaces/ITripService';
-import { RequestNotFoundError, RequestAlreadyConfirmedError } from '../../common/errors/domain-error';
+import {
+  RequestNotFoundError,
+  RequestAlreadyConfirmedError,
+  MissingSuggestedCoordinatesError,
+} from '../../common/errors/domain-error';
 import { DispatchEventName } from '../../common/events/event-names';
 import { DispatchDecisionEntity } from '../infrastructure/persistence/dispatch-decision.entity';
 
@@ -61,11 +65,19 @@ export class ConfirmDispatchUseCase {
         });
       }
 
-      // Determine pickup location
-      const pickupLocation =
-        input.choice === 'suggested' && decision.suggestedPointId
-          ? decision.origin // We'd need the safe point location here; using origin as pickup fallback
-          : decision.origin;
+      // Determine pickup location (REQ-FIX-04)
+      let pickupLocation: (typeof decision)['origin'];
+      if (input.choice === 'suggested') {
+        if (!decision.suggestedPointId || !decision.suggestedLocation) {
+          throw new MissingSuggestedCoordinatesError(
+            `Decision ${input.requestId} marked suggested but has no safe-point coordinates`,
+            { requestId: input.requestId },
+          );
+        }
+        pickupLocation = decision.suggestedLocation;
+      } else {
+        pickupLocation = decision.origin;
+      }
 
       // Create minimum trip — pass the transaction's manager so the INSERT
       // happens on the same connection that holds the SELECT FOR UPDATE.

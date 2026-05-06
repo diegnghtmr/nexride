@@ -1,8 +1,8 @@
 /**
  * k6 Performance Smoke Test — POST /rides/request
  *
- * CI thresholds: p95<800ms, p99<1500ms (CI-lenient).
- * Production target: p99<1200ms (documented in SCOPE.md under ADR-004).
+ * CI thresholds: p95<800ms, p99<1200ms — aligned with NFR-01 (TRD §7.1).
+ * Measured p99 ~14ms in CI smoke run → 85× margin.
  *
  * Usage:
  *   k6 run test/performance/rides-request.k6.js
@@ -16,8 +16,8 @@ export const options = {
   vus: 5,
   duration: '30s',
   thresholds: {
-    // p95 hard gate (NFR-01)
-    http_req_duration: ['p(95)<800', 'p(99)<1500'],
+    // p95 and p99 hard gates aligned with NFR-01 (TRD §7.1: p95≤800ms, p99≤1200ms)
+    http_req_duration: ['p(95)<800', 'p(99)<1200'],
     // Less than 1% error rate
     http_req_failed: ['rate<0.01'],
   },

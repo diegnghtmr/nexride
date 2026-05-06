@@ -21,6 +21,8 @@ export class DecisionRepository implements IDecisionRepository {
       destinationLat: decision.destination.lat,
       destinationLng: decision.destination.lng,
       suggestedPointId: decision.suggestedPointId ?? null,
+      suggestedLat: decision.suggestedLocation?.lat ?? null,
+      suggestedLng: decision.suggestedLocation?.lng ?? null,
       vehicleId: decision.winnerVehicleId,
       scoresJson: decision.scoresJson,
       fallbackReason: decision.fallbackReason ?? null,
@@ -55,6 +57,10 @@ export class DecisionRepository implements IDecisionRepository {
       },
       winnerVehicleId: entity.vehicleId,
       suggestedPointId: entity.suggestedPointId ?? undefined,
+      suggestedLocation:
+        entity.suggestedLat != null && entity.suggestedLng != null
+          ? { lat: entity.suggestedLat, lng: entity.suggestedLng }
+          : undefined,
       scoresJson: entity.scoresJson,
       fallbackReason: entity.fallbackReason ?? undefined,
       suggestionStatus: entity.suggestionStatus,

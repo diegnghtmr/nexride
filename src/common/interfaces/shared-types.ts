@@ -63,6 +63,8 @@ export interface PreliminaryDecision {
   destination: GeoPoint;
   winnerVehicleId: string;
   suggestedPointId?: string;
+  /** Coordinates of the suggested safe point (REQ-FIX-04). Only set when suggestedPointId is present. */
+  suggestedLocation?: GeoPoint;
   scoresJson: Record<string, unknown>;
   fallbackReason?: string;
   suggestionStatus: 'shown' | 'not_shown';

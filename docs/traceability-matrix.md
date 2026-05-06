@@ -44,10 +44,10 @@
 | TRD §4.9 | NFR-09 | Implementado | `src/dispatch/infrastructure/providers/haversine-distance.provider.ts` | `test/unit/dispatch/services/haversine-distance-provider.spec.ts` |
 | TRD §4.10 | NFR-10 | Implementado | `src/dispatch/application/confirm-dispatch.use-case.ts` | `test/integration/rides/rides.confirm.spec.ts` |
 | TRD §4.11..16 | NFR-11..16 | Fuera de Alcance — Infra producción | — | — |
-| TRD §4.17 | NFR-17 | Implementado | `src/common/observability/logger.module.ts` | `test/integration/rides/rides.request.spec.ts` |
-| TRD §4.18 | NFR-18 | Implementado | `src/common/observability/metrics.module.ts` | `GET /metrics` |
-| TRD §4.19 | NFR-19 | Implementado | `src/common/observability/tracing.module.ts` | Bootstrap en `src/main.ts` |
-| TRD §4.20 | NFR-20 | Implementado | `src/common/observability/metrics.module.ts` | Metrics definitions |
+| TRD §4.17 | NFR-17 | Implementado | `src/common/observability/pino.config.ts` | `test/integration/rides/rides.request.spec.ts` |
+| TRD §4.18 | NFR-18 | Implementado | `src/common/observability/metrics.controller.ts`, `src/common/observability/metrics.registry.ts`, `src/common/observability/observability.module.ts` | `test/integration/observability/metrics-endpoint.spec.ts` |
+| TRD §4.19 | NFR-19 | Implementado | `src/main.ts` (OpenTelemetry SDK via `@opentelemetry/sdk-node`) | Bootstrap en `src/main.ts` |
+| TRD §4.20 | NFR-20 | Implementado | `src/common/observability/metrics.registry.ts` | `test/integration/observability/metrics-endpoint.spec.ts` |
 | TRD §4.21 | NFR-21 | Implementado | `src/main.ts` (`GET /metrics`) | Endpoint Prometheus |
 
 ---
