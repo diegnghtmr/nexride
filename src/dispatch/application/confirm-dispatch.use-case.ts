@@ -1,5 +1,5 @@
-import { Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { PinoLogger } from 'nestjs-pino';
 import { DataSource } from 'typeorm';
 import { IDecisionRepository } from '../../common/interfaces/IDecisionRepository';
 import { ITripService } from '../../common/interfaces/ITripService';
@@ -26,13 +26,12 @@ export interface ConfirmDispatchOutput {
 }
 
 export class ConfirmDispatchUseCase {
-  private readonly logger = new Logger(ConfirmDispatchUseCase.name);
-
   constructor(
     private readonly decisionRepo: IDecisionRepository,
     private readonly tripService: ITripService,
     private readonly dataSource: DataSource,
     private readonly eventEmitter: EventEmitter2,
+    private readonly logger: PinoLogger = new PinoLogger({}),
   ) {}
 
   async execute(input: ConfirmDispatchInput): Promise<ConfirmDispatchOutput> {
@@ -158,7 +157,7 @@ export class ConfirmDispatchUseCase {
       }
     }
 
-    this.logger.log({ requestId: input.requestId, tripId: trip.id, choice: input.choice }, 'Dispatch confirmed');
+    this.logger.info({ requestId: input.requestId, tripId: trip.id, choice: input.choice }, 'Dispatch confirmed');
 
     return {
       tripId: trip.id,

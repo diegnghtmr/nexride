@@ -1,5 +1,5 @@
-import { Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { PinoLogger } from 'nestjs-pino';
 import { randomUUID } from 'node:crypto';
 import { CandidateGenerator } from '../domain/services/candidate-generator';
 import { CandidateFilter } from '../domain/services/candidate-filter';
@@ -55,7 +55,6 @@ export interface EvaluateDispatchOutput {
 }
 
 export class EvaluateDispatchUseCase {
-  private readonly logger = new Logger(EvaluateDispatchUseCase.name);
   private readonly pipelineTimeoutMs: number;
 
   constructor(
@@ -67,6 +66,7 @@ export class EvaluateDispatchUseCase {
     private readonly decisionRecorder: DecisionRecorder,
     private readonly eventEmitter: EventEmitter2,
     pipelineTimeoutMs: number = 1200,
+    private readonly logger: PinoLogger = new PinoLogger({}),
   ) {
     this.pipelineTimeoutMs = pipelineTimeoutMs;
   }

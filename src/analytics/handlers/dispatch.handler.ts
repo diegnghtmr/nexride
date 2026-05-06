@@ -1,7 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { AnalyticsEventEntity } from '../infrastructure/analytics-event.entity';
 import { DispatchEventName } from '../../common/events/event-names';
 import {
@@ -16,11 +17,11 @@ import {
 
 @Injectable()
 export class DispatchAnalyticsHandler {
-  private readonly logger = new Logger(DispatchAnalyticsHandler.name);
-
   constructor(
     @InjectRepository(AnalyticsEventEntity)
     private readonly analyticsRepo: Repository<AnalyticsEventEntity>,
+    @InjectPinoLogger(DispatchAnalyticsHandler.name)
+    private readonly logger: PinoLogger,
   ) {}
 
   @OnEvent(DispatchEventName.RequestCreated, { async: true })
