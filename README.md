@@ -248,7 +248,7 @@ DD-01 especifica un bus de eventos in-process para el monolito MVP. Kafka agrega
 
 ## Limitaciones conocidas
 
-1. **npm audit high**: 15 vulnerabilidades `high` pre-existentes en NestJS 10 + Express 4. Sin fix disponible sin migrar a NestJS 11 (breaking change). Gate CI: `--audit-level=critical` (0 críticas).
+1. **npm audit high**: 15 highs totales reportados por `npm audit` (incluye dev tooling: webpack, @nestjs/cli, testcontainers); **7 highs afectan el árbol de producción y están aceptados formalmente bajo ADR-006** con análisis CVE-por-CVE (`docs/adr/ADR-006-cve-deferrals.md`) y deadline 2026-07-01. Sin fix disponible sin migrar a NestJS 11 (breaking change). Gate CI: `--audit-level=critical` (0 críticas).
 
 2. **dependency-cruiser en Node >=22**: `npx depcruise` puede fallar con Node 25 (experimental VM modules). CI usa Node 20. El test de arquitectura detecta la versión y salta con advertencia en Node >=22.
 
