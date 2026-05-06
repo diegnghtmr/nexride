@@ -180,9 +180,8 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      # Audit level set to critical — NestJS 10 + Express transitive highs are
-      # tracked but do not have non-breaking fixes. Upgrade path: NestJS 11.
-      - run: npm audit --audit-level=critical
+      # Audit gate: high severity. Deferred highs documented in docs/adr/ADR-006-cve-deferrals.md.
+      - run: npm audit --audit-level=high
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
