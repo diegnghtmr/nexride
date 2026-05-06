@@ -23,9 +23,9 @@ import { randomUUID } from 'node:crypto';
 
 const SAFE_POINT_LAT = 4.65;
 const SAFE_POINT_LNG = -74.05;
-const ORIGIN_LAT = 4.60;
-const ORIGIN_LNG = -74.10;
-const DEST_LAT = 4.70;
+const ORIGIN_LAT = 4.6;
+const ORIGIN_LNG = -74.1;
+const DEST_LAT = 4.7;
 const DEST_LNG = -74.06;
 const VEHICLE_ID = 'VH-SUGGESTED-01';
 const RIDER_ID = 'rider-suggested-test';
