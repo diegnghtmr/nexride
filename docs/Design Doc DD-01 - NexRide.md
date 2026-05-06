@@ -458,7 +458,7 @@ No hay migración histórica ni backward compatibility hacia terceros, pero sí 
 
 * Cada request lleva un request\_id inyectado por middleware, propagado a logs, eventos y respuestas HTTP.  
 * Antes de la confirmación del viaje, la correlación funcional se hace con request\_id. Una vez creado el viaje, trip\_id se adjunta a la decisión de despacho y pasa a ser el identificador operativo principal.  
-* OpenTelemetry SDK integrado para tracing distribuido (incluso dentro del monolito, para identificar módulos lentos).
+* OpenTelemetry SDK integrado para tracing distribuido (incluso dentro del monolito, para identificar módulos lentos) (MVP v0.1.2: SDK instalado y scaffolded; bootstrap runtime via NodeSDK.start() pendiente — ver SCOPE.md NFR-21).
 
 ---
 
