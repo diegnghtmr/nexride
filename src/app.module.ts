@@ -7,6 +7,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { DomainExceptionFilter } from './common/filters/domain-exception.filter';
 import { RequestIdMiddleware } from './common/observability/request-id.middleware';
 import { buildPinoConfig } from './common/observability/pino.config';
+import { ObservabilityModule } from './common/observability/observability.module';
 import { SafePointsModule } from './safe-points/safe-points.module';
 import { FleetModule } from './fleet/fleet.module';
 import { DispatchModule } from './dispatch/dispatch.module';
@@ -35,6 +36,9 @@ import { AddDestinationToDispatchDecisions17000000010005 } from './migrations/17
 
     // Structured logging via pino (design §8)
     LoggerModule.forRoot(buildPinoConfig()),
+
+    // Observability — exposes GET /metrics with Prometheus registry (REQ-FIX-03)
+    ObservabilityModule,
 
     // TypeORM — env-driven config; migrations registered (design §5)
     TypeOrmModule.forRootAsync({
