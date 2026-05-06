@@ -20,6 +20,11 @@ export interface DispatchFleetConfig {
   telemetryStalenessSec: number;
 }
 
+export interface DispatchScoringConfig {
+  continuityBatteryWeight: number;
+  continuityZoneWeight: number;
+}
+
 export interface DispatchDistanceConfig {
   cacheTtlSec: number;
   providerTimeoutMs: number;
@@ -32,6 +37,7 @@ export interface DispatchConfig {
   suggestionThresholdPct: number;
   originalSafetyBaseline: number;
   weights: DispatchWeights;
+  scoring: DispatchScoringConfig;
   pipelineTimeoutMs: number;
   fallbackMinBatteryPct: number;
   maxEtaSeconds: number;
@@ -60,6 +66,15 @@ function validateWeights(weights: DispatchWeights): void {
   }
 }
 
+function validateContinuityWeights(scoring: DispatchScoringConfig): void {
+  const sum = scoring.continuityBatteryWeight + scoring.continuityZoneWeight;
+  if (Math.abs(sum - 1.0) > 1e-6) {
+    throw new ConfigValidationError(
+      `Configuration error: continuity weights must sum to 1.0 ±1e-6, got ${sum.toFixed(9)}`,
+    );
+  }
+}
+
 export function loadDispatchConfig(env: NodeJS.ProcessEnv): DispatchConfig {
   const weights: DispatchWeights = {
     proximity: parseNumber(env, 'DISPATCH_W_PROXIMITY', 0.3),
@@ -70,12 +85,20 @@ export function loadDispatchConfig(env: NodeJS.ProcessEnv): DispatchConfig {
 
   validateWeights(weights);
 
+  const scoring: DispatchScoringConfig = {
+    continuityBatteryWeight: parseNumber(env, 'DISPATCH_SCORING_CONTINUITY_BATTERY_WEIGHT', 0.7),
+    continuityZoneWeight: parseNumber(env, 'DISPATCH_SCORING_CONTINUITY_ZONE_WEIGHT', 0.3),
+  };
+
+  validateContinuityWeights(scoring);
+
   return {
     candidateRadiusKm: parseNumber(env, 'DISPATCH_CANDIDATE_RADIUS_KM', 5),
     safePointRadiusM: parseNumber(env, 'DISPATCH_SAFE_POINT_RADIUS_M', 120),
     suggestionThresholdPct: parseNumber(env, 'DISPATCH_SUGGESTION_THRESHOLD_PCT', 0.15),
     originalSafetyBaseline: parseNumber(env, 'DISPATCH_ORIGINAL_SAFETY_BASELINE', 0.3),
     weights,
+    scoring,
     pipelineTimeoutMs: parseNumber(env, 'DISPATCH_PIPELINE_TIMEOUT_MS', 1200),
     fallbackMinBatteryPct: parseNumber(env, 'DISPATCH_FALLBACK_MIN_BATTERY', 20),
     maxEtaSeconds: parseNumber(env, 'DISPATCH_MAX_ETA_SECONDS', 600),
