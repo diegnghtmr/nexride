@@ -7,6 +7,7 @@ import {
   RequestNotFoundError,
   RequestAlreadyConfirmedError,
   MissingSuggestedCoordinatesError,
+  RequestNotAuthorizedError,
 } from '../../common/errors/domain-error';
 import { DispatchEventName } from '../../common/events/event-names';
 import { DispatchDecisionEntity } from '../infrastructure/persistence/dispatch-decision.entity';
@@ -41,6 +42,15 @@ export class ConfirmDispatchUseCase {
     const decision = await this.decisionRepo.findByRequestId(input.requestId);
     if (!decision) {
       throw new RequestNotFoundError(`Request ${input.requestId} not found`, { requestId: input.requestId });
+    }
+
+    // REQ-SEC-1: Ownership check before acquiring any lock or transaction slot.
+    // Fail fast — do not waste DB resources on unauthorized requests.
+    if (decision.riderId !== input.riderId) {
+      throw new RequestNotAuthorizedError('rider not authorized for request', {
+        requestId: input.requestId,
+        riderId: input.riderId,
+      });
     }
 
     // Execute transaction: SELECT FOR UPDATE → idempotency check → create trip → update decision

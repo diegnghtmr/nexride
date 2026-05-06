@@ -220,6 +220,22 @@ describe('POST /rides/confirm (integration)', () => {
       .expect(404);
   });
 
+  // REQ-SEC-1 — cross-rider confirm must return 403 (TDD A.5)
+  it('403 when a different rider tries to confirm another riders request', async () => {
+    // Request created by rider-confirm-test
+    const { requestId } = await makeRequest();
+
+    // Confirm attempt by a different rider
+    const res = await request(app.getHttpServer())
+      .post('/rides/confirm')
+      .set('x-test-rider-id', 'rider-imposter')
+      .set('x-test-rider-role', 'rider')
+      .send({ requestId, choice: 'original' })
+      .expect(403);
+
+    expect(res.body.code).toBe('REQUEST_NOT_AUTHORIZED');
+  });
+
   it('emits trip.assigned and dispatch.completed events on successful confirm', async () => {
     const { requestId } = await makeRequest();
 
