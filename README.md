@@ -18,7 +18,11 @@ Este repositorio contiene el **vertical slice backend completo**: evaluación de
 | Flota read-side (Redis) | Implementado | RTF-14..15 |
 | Trip mínimo (`requested → assigned`) | Parcial | RTF-26..28 |
 | Analítica de eventos del flujo | Implementado | RTF-31..32 |
-| Observabilidad (pino + prom-client) | Implementado | NFR-17..21 |
+| Observabilidad — Rate limiting (NFR-17) | Fuera de Alcance | NFR-17 |
+| Observabilidad — Logs estructurados pino (NFR-18) | Implementado | NFR-18 |
+| Observabilidad — Métricas Prometheus prom-client (NFR-19) | Implementado | NFR-19 |
+| Observabilidad — Alertas configuradas (NFR-20) | Fuera de Alcance | NFR-20 |
+| Observabilidad — Tracing OpenTelemetry (NFR-21) | Parcial | NFR-21 |
 | CI con 7 jobs bloqueantes | Implementado | CI-01 |
 
 Ver [`SCOPE.md`](./SCOPE.md) para el detalle exhaustivo por ID de requisito (RTF/NFR/CT/CAT).
@@ -244,7 +248,7 @@ DD-01 especifica un bus de eventos in-process para el monolito MVP. Kafka agrega
 
 ## Limitaciones conocidas
 
-1. **npm audit high**: 15 vulnerabilidades `high` pre-existentes en NestJS 10 + Express 4. Sin fix disponible sin migrar a NestJS 11 (breaking change). Gate CI: `--audit-level=critical` (0 críticas).
+1. **npm audit high**: 15 highs totales reportados por `npm audit` (incluye dev tooling: webpack, @nestjs/cli, testcontainers); **7 highs afectan el árbol de producción y están aceptados formalmente bajo ADR-006** con análisis CVE-por-CVE (`docs/adr/ADR-006-cve-deferrals.md`) y deadline 2026-07-01. Sin fix disponible sin migrar a NestJS 11 (breaking change). Gate CI: `--audit-level=critical` (0 críticas).
 
 2. **dependency-cruiser en Node >=22**: `npx depcruise` puede fallar con Node 25 (experimental VM modules). CI usa Node 20. El test de arquitectura detecta la versión y salta con advertencia en Node >=22.
 
