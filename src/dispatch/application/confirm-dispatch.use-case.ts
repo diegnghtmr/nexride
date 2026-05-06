@@ -137,6 +137,7 @@ export class ConfirmDispatchUseCase {
 
     this.eventEmitter.emit(DispatchEventName.Completed, {
       requestId: input.requestId,
+      riderId: decision.riderId,
       tripId: trip.id,
       durationMs,
       winnerVehicleId: vehicleId,
@@ -148,6 +149,7 @@ export class ConfirmDispatchUseCase {
       if (input.choice === 'suggested') {
         this.eventEmitter.emit(DispatchEventName.SuggestionAccepted, {
           requestId: input.requestId,
+          riderId: decision.riderId,
           tripId: trip.id,
           safePointId: decision.suggestedPointId,
           ts: new Date().toISOString(),
@@ -155,6 +157,7 @@ export class ConfirmDispatchUseCase {
       } else {
         this.eventEmitter.emit(DispatchEventName.SuggestionRejected, {
           requestId: input.requestId,
+          riderId: decision.riderId,
           tripId: trip.id,
           safePointId: decision.suggestedPointId,
           ts: new Date().toISOString(),

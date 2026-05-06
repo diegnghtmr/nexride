@@ -41,7 +41,7 @@ export class DispatchAnalyticsHandler {
       DispatchEventName.SuggestionShown,
       payload.requestId,
       undefined,
-      undefined,
+      payload.riderId,
       payload as unknown as Record<string, unknown>,
     );
   }
@@ -52,7 +52,7 @@ export class DispatchAnalyticsHandler {
       DispatchEventName.SuggestionAccepted,
       payload.requestId,
       payload.tripId,
-      undefined,
+      payload.riderId,
       payload as unknown as Record<string, unknown>,
     );
   }
@@ -63,7 +63,7 @@ export class DispatchAnalyticsHandler {
       DispatchEventName.SuggestionRejected,
       payload.requestId,
       payload.tripId,
-      undefined,
+      payload.riderId,
       payload as unknown as Record<string, unknown>,
     );
   }
@@ -74,7 +74,7 @@ export class DispatchAnalyticsHandler {
       DispatchEventName.FallbackActivated,
       payload.requestId,
       undefined,
-      undefined,
+      payload.riderId,
       payload as unknown as Record<string, unknown>,
     );
   }
@@ -85,7 +85,7 @@ export class DispatchAnalyticsHandler {
       DispatchEventName.Completed,
       payload.requestId,
       payload.tripId,
-      undefined,
+      payload.riderId,
       payload as unknown as Record<string, unknown>,
     );
   }

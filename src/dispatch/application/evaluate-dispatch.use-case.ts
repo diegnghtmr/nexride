@@ -117,6 +117,7 @@ export class EvaluateDispatchUseCase {
 
         this.eventEmitter.emit(DispatchEventName.FallbackActivated, {
           requestId,
+          riderId: input.riderId,
           reason: fallbackReason,
           ts: new Date().toISOString(),
         });
@@ -258,6 +259,7 @@ export class EvaluateDispatchUseCase {
       const originalCombo = combos.find((c) => c.vehicleId === decision.primary.vehicleId && c.safePointId === null);
       this.eventEmitter.emit(DispatchEventName.SuggestionShown, {
         requestId,
+        riderId,
         originalSafety: originalCombo?.safety ?? 0.3,
         suggestedSafety: decision.primary.safety,
         walkingM: decision.suggestion.walkingMeters,
