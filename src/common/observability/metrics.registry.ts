@@ -2,6 +2,18 @@ import { Registry, Histogram, Counter } from 'prom-client';
 
 const PIPELINE_BUCKETS = [25, 50, 100, 200, 400, 800, 1200, 2000];
 
+let cached: { registry: Registry; metrics: DispatchMetrics } | null = null;
+
+export function getOrCreateMetricsRegistry(): { registry: Registry; metrics: DispatchMetrics } {
+  if (!cached) cached = createMetricsRegistry();
+  return cached;
+}
+
+/** Test helper — pairs with prom-client's register.clear() in beforeAll (ADR-4). */
+export function resetMetricsRegistry(): void {
+  cached = null;
+}
+
 // Bucket sets for F2 metrics (ADR-3)
 const EVALUATE_DURATION_BUCKETS = [10, 50, 100, 200, 400, 800];
 const CANDIDATES_COUNT_BUCKETS = [0, 1, 2, 5, 10, 20, 50];
