@@ -81,7 +81,7 @@ nexride/
 │   │   ├── filters/domain-exception.filter.ts
 │   │   ├── guards/test-context.guard.ts, rbac.guard.ts
 │   │   ├── interfaces/IFleetService.ts, ISafePointsService.ts, ITripService.ts …
-│   │   └── observability/logger.module.ts, metrics.module.ts, pino.config.ts
+│   │   └── observability/pino.config.ts, metrics.controller.ts, metrics.registry.ts, observability.module.ts, request-id.middleware.ts
 │   ├── dispatch/
 │   │   ├── dispatch.module.ts
 │   │   ├── dispatch.facade.ts            # Única entrada pública del módulo
