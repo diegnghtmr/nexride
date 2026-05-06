@@ -153,8 +153,8 @@ describe('ScoringEngine', () => {
     expect(result.safety).toBeCloseTo(0.8, 6);
   });
 
-  // Test 7: Composite total computed with weights from config
-  it('computes total as weighted sum of all four components', async () => {
+  // Test 7: Composite total computed with weights from config (REQ-CFG-4)
+  it('computes total as weighted sum of all four components using config weights', async () => {
     const cfg = makeConfig();
     const provider = makeDistanceProvider(0); // proximity = 1
     const engine = new ScoringEngine(provider, cfg);
@@ -165,14 +165,14 @@ describe('ScoringEngine', () => {
 
     const result = await engine.score({ origin, vehicle, safePoint: sp, tripDistanceKm, zoneFactor });
 
-    // proximity=1, energy=clamp(100/(5*1.15))=1, safety=0.8
-    // projectedBatteryPct = 80 - (5/100)*100 = 75
-    // continuity = 0.7*clamp(75/100) + 0.3*0.5 = 0.7*0.75 + 0.15 = 0.525+0.15=0.675
+    // continuity formula uses cfg.scoring weights (not hardcoded 0.7/0.3)
     const expectedProximity = 1;
     const expectedEnergy = Math.min(1, vehicle.autonomyKm / (tripDistanceKm * (1 + cfg.fleet.minimumReservePct)));
     const expectedSafety = 0.8;
     const projectedBatteryPct = vehicle.batteryPct - (tripDistanceKm / vehicle.autonomyKm) * 100;
-    const expectedContinuity = 0.7 * Math.min(1, Math.max(0, projectedBatteryPct / 100)) + 0.3 * zoneFactor;
+    const battW = cfg.scoring.continuityBatteryWeight;
+    const zoneW = cfg.scoring.continuityZoneWeight;
+    const expectedContinuity = battW * Math.min(1, Math.max(0, projectedBatteryPct / 100)) + zoneW * zoneFactor;
     const expectedTotal =
       cfg.weights.proximity * expectedProximity +
       cfg.weights.energy * expectedEnergy +
@@ -184,6 +184,28 @@ describe('ScoringEngine', () => {
     expect(result.energy).toBeCloseTo(expectedEnergy, 6);
     expect(result.safety).toBeCloseTo(expectedSafety, 6);
     expect(result.continuity).toBeCloseTo(expectedContinuity, 6);
+  });
+
+  // REQ-CFG-4: custom weights (triangulation — non-default 0.6/0.4)
+  it('computes continuity correctly with non-default weights (0.6 battery / 0.4 zone)', async () => {
+    const cfg = makeConfig({
+      scoring: { continuityBatteryWeight: 0.6, continuityZoneWeight: 0.4 },
+    });
+    const provider = makeDistanceProvider(0);
+    const engine = new ScoringEngine(provider, cfg);
+    const tripDistanceKm = 5;
+    const zoneFactor = 0.5;
+    const vehicle = makeVehicle({ autonomyKm: 100, batteryPct: 80 });
+
+    const result = await engine.score({ origin, vehicle, safePoint: null, tripDistanceKm, zoneFactor });
+
+    // projectedBatteryPct = 80 - (5/100)*100 = 75
+    const projectedBatteryPct = vehicle.batteryPct - (tripDistanceKm / vehicle.autonomyKm) * 100;
+    const expectedContinuity = 0.6 * Math.min(1, Math.max(0, projectedBatteryPct / 100)) + 0.4 * zoneFactor;
+    expect(result.continuity).toBeCloseTo(expectedContinuity, 6);
+    // Verify it differs from the default-weight result
+    const defaultExpected = 0.7 * Math.min(1, Math.max(0, projectedBatteryPct / 100)) + 0.3 * zoneFactor;
+    expect(result.continuity).not.toBeCloseTo(defaultExpected, 6);
   });
 
   // Test 8: Score function is deterministic for equivalent inputs

@@ -19,6 +19,45 @@ describe('loadDispatchConfig', () => {
     DISTANCE_PROVIDER_TIMEOUT_MS: '800',
   };
 
+  // REQ-CFG-1: defaults when env vars absent
+  it('loads default continuity weights 0.7/0.3 when env vars absent', () => {
+    const config = loadDispatchConfig({});
+    expect(config.scoring.continuityBatteryWeight).toBe(0.7);
+    expect(config.scoring.continuityZoneWeight).toBe(0.3);
+  });
+
+  // REQ-CFG-1: env var override respected
+  it('loads continuity weights from env vars when provided', () => {
+    const env = {
+      ...validEnv,
+      DISPATCH_SCORING_CONTINUITY_BATTERY_WEIGHT: '0.6',
+      DISPATCH_SCORING_CONTINUITY_ZONE_WEIGHT: '0.4',
+    };
+    const config = loadDispatchConfig(env);
+    expect(config.scoring.continuityBatteryWeight).toBe(0.6);
+    expect(config.scoring.continuityZoneWeight).toBe(0.4);
+  });
+
+  // REQ-CFG-2: invalid sum triggers ConfigValidationError
+  it('throws ConfigValidationError when continuity weights do not sum to 1.0', () => {
+    const env = {
+      ...validEnv,
+      DISPATCH_SCORING_CONTINUITY_BATTERY_WEIGHT: '0.5',
+      DISPATCH_SCORING_CONTINUITY_ZONE_WEIGHT: '0.4',
+    };
+    expect(() => loadDispatchConfig(env)).toThrow(ConfigValidationError);
+  });
+
+  // Triangulation: valid non-default sum (0.6+0.4=1.0) does NOT throw
+  it('does not throw when continuity weights sum to exactly 1.0 (non-default values)', () => {
+    const env = {
+      ...validEnv,
+      DISPATCH_SCORING_CONTINUITY_BATTERY_WEIGHT: '0.6',
+      DISPATCH_SCORING_CONTINUITY_ZONE_WEIGHT: '0.4',
+    };
+    expect(() => loadDispatchConfig(env)).not.toThrow();
+  });
+
   it('returns typed config with all fields when env is valid', () => {
     const config = loadDispatchConfig(validEnv);
 

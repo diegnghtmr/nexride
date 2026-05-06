@@ -50,9 +50,11 @@ export class ScoringEngine {
     // safety = safePoint.safetyScore.value OR originalSafetyBaseline
     const safety = safePoint ? safePoint.safetyScore.value : this.cfg.originalSafetyBaseline;
 
-    // continuity = 0.7 * clamp01(projectedBatteryPct/100) + 0.3 * zoneFactor
+    // continuity = batteryWeight * clamp01(projectedBatteryPct/100) + zoneWeight * zoneFactor
     const projectedBatteryPct = vehicle.batteryPct - (tripDistanceKm / vehicle.autonomyKm) * 100;
-    const continuity = 0.7 * clamp01(projectedBatteryPct / 100) + 0.3 * zoneFactor;
+    const continuity =
+      this.cfg.scoring.continuityBatteryWeight * clamp01(projectedBatteryPct / 100) +
+      this.cfg.scoring.continuityZoneWeight * zoneFactor;
 
     // total = weighted sum
     const w = this.cfg.weights;
