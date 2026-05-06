@@ -113,10 +113,9 @@ export class DispatchAnalyticsHandler {
         eventName,
         requestId: requestId ?? null,
         tripId: tripId ?? null,
-        // REQ-TRC-3: riderId passed directly — all 5 dispatch payloads now
-        // include riderId as a required field, so no coalescing needed.
-        riderId: riderId,
-        payloadJson: (payload as Record<string, unknown>) ?? {},
+        // REQ-TRC-3: userId mapped from riderId — entity renamed to match TRD (F11).
+        userId: riderId,
+        metadata: (payload as Record<string, unknown>) ?? {},
       });
       await this.analyticsRepo.save(entity);
     } catch (err) {

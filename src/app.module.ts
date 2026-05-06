@@ -25,6 +25,7 @@ import { CreateDispatchDecisions17000000010002 } from './migrations/170000000100
 import { CreateTrips17000000010003 } from './migrations/17000000010003-CreateTrips';
 import { CreateAnalyticsEvents17000000010004 } from './migrations/17000000010004-CreateAnalyticsEvents';
 import { AddDestinationToDispatchDecisions17000000010005 } from './migrations/17000000010005-AddDestinationToDispatchDecisions';
+import { RenameAnalyticsColumns17000000010006 } from './migrations/17000000010006-RenameAnalyticsColumns';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { AddDestinationToDispatchDecisions17000000010005 } from './migrations/17
           CreateTrips17000000010003,
           CreateAnalyticsEvents17000000010004,
           AddDestinationToDispatchDecisions17000000010005,
+          RenameAnalyticsColumns17000000010006,
         ],
         migrationsRun: false, // run explicitly via `npm run migrate`
         entities: [SafePointEntity, SafePointAuditEntity, DispatchDecisionEntity, TripEntity, AnalyticsEventEntity],

@@ -14,11 +14,11 @@ export class AnalyticsEventEntity {
   @Column({ name: 'trip_id', type: 'uuid', nullable: true })
   tripId?: string | null;
 
-  @Column({ name: 'rider_id', type: 'text', nullable: true })
-  riderId?: string | null;
+  @Column({ name: 'user_id', type: 'text', nullable: true })
+  userId?: string | null;
 
-  @Column({ name: 'payload_json', type: 'jsonb' })
-  payloadJson!: Record<string, unknown>;
+  @Column({ name: 'metadata', type: 'jsonb' })
+  metadata!: Record<string, unknown>;
 
   @CreateDateColumn({ name: 'occurred_at', type: 'timestamptz' })
   occurredAt!: Date;
