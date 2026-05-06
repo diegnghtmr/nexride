@@ -212,7 +212,7 @@ npm run migrate             # Aplica todas las migraciones pendientes
 | RTF-23..25 | SafePoints CRUD + RBAC + auditoría | `src/safe-points/` | `test/integration/safe-points/` |
 | RTF-28 | pickup_type + suggested_point_id | `src/trip/infrastructure/trip.entity.ts` | `test/integration/rides/rides.confirm.spec.ts` |
 | RTF-31/32 | Analytics eventos dispatch + trip | `src/analytics/handlers/dispatch.handler.ts` | `test/integration/rides/rides.confirm.spec.ts` |
-| NFR-01 | Latencia p95<800ms, p99<1500ms | `test/performance/rides-request.k6.js` | CI job `performance-smoke` |
+| NFR-01 | Latencia p95<800ms, p99<1200ms | `test/performance/rides-request.k6.js` | CI job `performance-smoke` |
 | NFR-09 | Circuit breaker distancia → Haversine | `src/dispatch/infrastructure/providers/haversine-distance.provider.ts` | `test/unit/dispatch/services/haversine-distance-provider.spec.ts` |
 | CT-05/06 | Isolation dispatch ↔ fleet/safe-points | `.dependency-cruiser.cjs` | `test/architecture/dispatch-isolation.spec.ts` |
 
@@ -232,9 +232,9 @@ El DD-02 requiere pesos y thresholds configurables sin redeployment. Se implemen
 
 RTF-01..03 (Auth) están fuera del alcance. Los endpoints de Rider y SafePoints igual requieren identidad autenticada para demostrar RBAC. `TestContextGuard` inyecta `req.user` desde headers `x-test-rider-id`/`x-test-rider-role`, y está **deshabilitado en `NODE_ENV=production`** (lanza `RbacForbiddenError`). El swap a JWT = reemplazar un guard.
 
-### ADR-004 — Umbral k6 CI p99<1500ms vs target producción 1200ms
+### ADR-004 — Umbral k6 CI (superseded en v0.1.1-mvp)
 
-Los runners de GitHub tienen latencia variable (hasta 300ms de overhead). Fijar p99<1200ms en CI produciría fallos espurios que erosionan la confianza en el gate. La decisión: gate CI p95<800ms (NFR-01 hard) + p99<1500ms (CI-leniente). El objetivo de producción 1200ms está documentado en SCOPE.md §4 y el script k6 lo comenta explícitamente.
+ADR-004 (histórico, v0.1.0-mvp): el gate era p99<1500ms para tolerar overhead variable de runners de GitHub (hasta 300ms). En v0.1.1-mvp el gate CI ahora respeta NFR-01 directamente: p95<800ms y p99<1200ms. La medición real en CI smoke fue p99 ≈ 14ms (85× margen), demostrando que p99<1200ms es seguro y coherente con el objetivo de producción. ADR retenido para auditoría histórica de la decisión.
 
 ### ADR-005 — `EventEmitter2` in-process vs Kafka
 
