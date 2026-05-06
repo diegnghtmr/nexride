@@ -20,7 +20,7 @@
     "test:cov": "jest --config jest.unit.config.cjs --coverage",
     "arch:check": "depcruise --config .dependency-cruiser.cjs src",
     "openapi:generate": "ts-node scripts/generate-openapi.ts",
-    "audit": "npm audit --audit-level=critical",
+    "audit": "npm audit --audit-level=high --omit=dev",
     "gitleaks": "gitleaks detect --source . --no-banner",
     "migrate": "ts-node -e \"require('./src/migrate').run()\"",
     "ci:local": "npm run lint && npm run typecheck && npm run arch:check && npm run test:cov && npm run test:integration && npm run audit"
