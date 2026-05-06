@@ -15,6 +15,7 @@ export interface RequestCreatedPayload {
 
 export interface SuggestionShownPayload {
   requestId: string;
+  riderId: string;
   originalSafety: number;
   suggestedSafety: number;
   walkingM: number;
@@ -23,6 +24,7 @@ export interface SuggestionShownPayload {
 
 export interface SuggestionAcceptedPayload {
   requestId: string;
+  riderId: string;
   tripId: string;
   safePointId: string;
   ts: string;
@@ -30,6 +32,7 @@ export interface SuggestionAcceptedPayload {
 
 export interface SuggestionRejectedPayload {
   requestId: string;
+  riderId: string;
   tripId: string;
   safePointId: string;
   ts: string;
@@ -37,12 +40,14 @@ export interface SuggestionRejectedPayload {
 
 export interface FallbackActivatedPayload {
   requestId: string;
+  riderId: string;
   reason: 'timeout' | 'empty_after_filter' | 'no_candidates';
   ts: string;
 }
 
 export interface CompletedPayload {
   requestId: string;
+  riderId: string;
   tripId: string;
   durationMs: number;
   winnerVehicleId: string;

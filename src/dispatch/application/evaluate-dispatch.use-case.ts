@@ -1,6 +1,7 @@
-import { Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { PinoLogger } from 'nestjs-pino';
 import { randomUUID } from 'node:crypto';
+import { DispatchMetrics } from '../../common/observability/metrics.registry';
 import { CandidateGenerator } from '../domain/services/candidate-generator';
 import { CandidateFilter } from '../domain/services/candidate-filter';
 import { ScoringEngine } from '../domain/services/scoring-engine';
@@ -55,7 +56,6 @@ export interface EvaluateDispatchOutput {
 }
 
 export class EvaluateDispatchUseCase {
-  private readonly logger = new Logger(EvaluateDispatchUseCase.name);
   private readonly pipelineTimeoutMs: number;
 
   constructor(
@@ -67,6 +67,8 @@ export class EvaluateDispatchUseCase {
     private readonly decisionRecorder: DecisionRecorder,
     private readonly eventEmitter: EventEmitter2,
     pipelineTimeoutMs: number = 1200,
+    private readonly logger: PinoLogger = new PinoLogger({}),
+    private readonly metrics?: DispatchMetrics,
   ) {
     this.pipelineTimeoutMs = pipelineTimeoutMs;
   }
@@ -97,7 +99,12 @@ export class EvaluateDispatchUseCase {
     );
 
     try {
-      return await Promise.race([pipelinePromise, timeoutPromise]);
+      const result = await Promise.race([pipelinePromise, timeoutPromise]);
+      // REQ-OBS-1: emit evaluate success counter
+      this.metrics?.evaluateTotal.inc({ outcome: 'success' });
+      // REQ-OBS-2: emit evaluate duration histogram
+      this.metrics?.evaluateDurationMs.observe(Date.now() - startMs);
+      return result;
     } catch (err: unknown) {
       const isTimeout = err instanceof Error && err.message === 'PIPELINE_TIMEOUT';
       const fallbackReason = isTimeout ? 'timeout' : 'no_candidates';
@@ -110,6 +117,7 @@ export class EvaluateDispatchUseCase {
 
         this.eventEmitter.emit(DispatchEventName.FallbackActivated, {
           requestId,
+          riderId: input.riderId,
           reason: fallbackReason,
           ts: new Date().toISOString(),
         });
@@ -127,6 +135,10 @@ export class EvaluateDispatchUseCase {
           suggestionStatus: 'not_shown',
           pipelineDurationMs,
         });
+
+        // REQ-OBS-1: emit fallback counter and duration
+        this.metrics?.evaluateTotal.inc({ outcome: 'fallback' });
+        this.metrics?.evaluateDurationMs.observe(pipelineDurationMs);
 
         return {
           requestId,
@@ -159,6 +171,9 @@ export class EvaluateDispatchUseCase {
 
     // Phase 2: Filter
     const { passed: filtered } = this.candidateFilter.filter(rawVehicles, tripDistanceKm);
+
+    // REQ-OBS-4: record candidate count post-filter
+    this.metrics?.candidatesCount.observe(filtered.length);
 
     if (filtered.length === 0) {
       throw new Error('EMPTY_AFTER_FILTER');
@@ -244,6 +259,7 @@ export class EvaluateDispatchUseCase {
       const originalCombo = combos.find((c) => c.vehicleId === decision.primary.vehicleId && c.safePointId === null);
       this.eventEmitter.emit(DispatchEventName.SuggestionShown, {
         requestId,
+        riderId,
         originalSafety: originalCombo?.safety ?? 0.3,
         suggestedSafety: decision.primary.safety,
         walkingM: decision.suggestion.walkingMeters,

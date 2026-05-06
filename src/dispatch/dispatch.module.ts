@@ -3,6 +3,9 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { PinoLogger } from 'nestjs-pino';
+import { ObservabilityModule, DISPATCH_METRICS } from '../common/observability/observability.module';
+import { DispatchMetrics } from '../common/observability/metrics.registry';
 import { CandidateGenerator } from './domain/services/candidate-generator';
 import { CandidateFilter } from './domain/services/candidate-filter';
 import { ScoringEngine } from './domain/services/scoring-engine';
@@ -40,6 +43,7 @@ export const DECISION_RECORDER = Symbol('DecisionRecorder');
     FleetModule,
     SafePointsModule,
     TripModule,
+    ObservabilityModule,
     TypeOrmModule.forFeature([DispatchDecisionEntity]),
   ],
   providers: [
@@ -126,6 +130,8 @@ export const DECISION_RECORDER = Symbol('DecisionRecorder');
         FALLBACK_HANDLER,
         DECISION_RECORDER,
         EventEmitter2,
+        PinoLogger,
+        DISPATCH_METRICS,
       ],
       useFactory: (
         candidateGenerator: CandidateGenerator,
@@ -135,9 +141,12 @@ export const DECISION_RECORDER = Symbol('DecisionRecorder');
         fallbackHandler: FallbackHandler,
         decisionRecorder: DecisionRecorder,
         eventEmitter: EventEmitter2,
+        logger: PinoLogger,
+        metrics: DispatchMetrics,
       ) => {
         const cfg = loadDispatchConfig(process.env);
-        const uc = new EvaluateDispatchUseCase(
+        logger.setContext(EvaluateDispatchUseCase.name);
+        return new EvaluateDispatchUseCase(
           candidateGenerator,
           candidateFilter,
           scoringEngine,
@@ -146,20 +155,24 @@ export const DECISION_RECORDER = Symbol('DecisionRecorder');
           decisionRecorder,
           eventEmitter,
           cfg.pipelineTimeoutMs,
+          logger,
+          metrics,
         );
-        return uc;
       },
     },
     {
       provide: CONFIRM_DISPATCH_USE_CASE,
-      inject: [DECISION_REPOSITORY, TRIP_SERVICE, DataSource, EventEmitter2],
+      inject: [DECISION_REPOSITORY, TRIP_SERVICE, DataSource, EventEmitter2, PinoLogger, DISPATCH_METRICS],
       useFactory: (
         decisionRepo: DecisionRepository,
         tripService: ITripService,
         dataSource: DataSource,
         eventEmitter: EventEmitter2,
+        logger: PinoLogger,
+        metrics: DispatchMetrics,
       ) => {
-        return new ConfirmDispatchUseCase(decisionRepo, tripService, dataSource, eventEmitter);
+        logger.setContext(ConfirmDispatchUseCase.name);
+        return new ConfirmDispatchUseCase(decisionRepo, tripService, dataSource, eventEmitter, logger, metrics);
       },
     },
 

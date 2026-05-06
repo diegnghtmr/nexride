@@ -11,7 +11,11 @@
 import { ConfirmDispatchUseCase } from '../../../../src/dispatch/application/confirm-dispatch.use-case';
 import { IDecisionRepository } from '../../../../src/common/interfaces/IDecisionRepository';
 import { ITripService } from '../../../../src/common/interfaces/ITripService';
-import { RequestNotFoundError, RequestAlreadyConfirmedError } from '../../../../src/common/errors/domain-error';
+import {
+  RequestNotFoundError,
+  RequestAlreadyConfirmedError,
+  RequestNotAuthorizedError,
+} from '../../../../src/common/errors/domain-error';
 import { DispatchDecisionEntity } from '../../../../src/dispatch/infrastructure/persistence/dispatch-decision.entity';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DataSource, EntityManager, SelectQueryBuilder } from 'typeorm';
@@ -91,6 +95,57 @@ function makeEventEmitter(): jest.Mocked<EventEmitter2> {
     emit: jest.fn(),
   } as unknown as jest.Mocked<EventEmitter2>;
 }
+
+// REQ-SEC-1 — TDD RED: ownership guard
+describe('ConfirmDispatchUseCase — ownership guard (REQ-SEC-1)', () => {
+  it('throws RequestNotAuthorizedError when input.riderId differs from decision.riderId', async () => {
+    const decisionRepo = makeDecisionRepo();
+    // decision loaded for rider-001
+    (decisionRepo.findByRequestId as jest.Mock).mockResolvedValueOnce({
+      requestId: 'req-001',
+      riderId: 'rider-001',
+      origin: { lat: 4.65, lng: -74.05 },
+      destination: { lat: 4.7, lng: -74.1 },
+      suggestedPointId: undefined,
+      scoresJson: {},
+      suggestionStatus: 'not_shown',
+      pipelineDurationMs: 200,
+    });
+    const dataSource = makeDataSource(BASE_ENTITY);
+    const tripService = makeTripService();
+    const eventEmitter = makeEventEmitter();
+
+    const useCase = new ConfirmDispatchUseCase(decisionRepo, tripService, dataSource, eventEmitter);
+
+    // GIVEN rider-002 tries to confirm a request that belongs to rider-001
+    await expect(
+      useCase.execute({ requestId: 'req-001', riderId: 'rider-002', choice: 'original' }),
+    ).rejects.toBeInstanceOf(RequestNotAuthorizedError);
+  });
+
+  it('proceeds normally when input.riderId matches decision.riderId (same-rider passes)', async () => {
+    const decisionRepo = makeDecisionRepo();
+    // decision loaded for rider-001 — same as input
+    (decisionRepo.findByRequestId as jest.Mock).mockResolvedValueOnce({
+      requestId: 'req-001',
+      riderId: 'rider-001',
+      origin: { lat: 4.65, lng: -74.05 },
+      destination: { lat: 4.7, lng: -74.1 },
+      suggestedPointId: undefined,
+      scoresJson: {},
+      suggestionStatus: 'not_shown',
+      pipelineDurationMs: 200,
+    });
+    const dataSource = makeDataSource(BASE_ENTITY);
+    const tripService = makeTripService();
+    const eventEmitter = makeEventEmitter();
+
+    const useCase = new ConfirmDispatchUseCase(decisionRepo, tripService, dataSource, eventEmitter);
+
+    const result = await useCase.execute({ requestId: 'req-001', riderId: 'rider-001', choice: 'original' });
+    expect(result.status).toBe('assigned');
+  });
+});
 
 describe('ConfirmDispatchUseCase — W-5 SELECT FOR UPDATE', () => {
   it('calls createQueryBuilder with pessimistic_write lock inside the transaction', async () => {

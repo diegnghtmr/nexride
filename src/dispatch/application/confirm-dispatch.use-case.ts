@@ -1,12 +1,14 @@
-import { Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { PinoLogger } from 'nestjs-pino';
 import { DataSource } from 'typeorm';
 import { IDecisionRepository } from '../../common/interfaces/IDecisionRepository';
 import { ITripService } from '../../common/interfaces/ITripService';
+import { DispatchMetrics } from '../../common/observability/metrics.registry';
 import {
   RequestNotFoundError,
   RequestAlreadyConfirmedError,
   MissingSuggestedCoordinatesError,
+  RequestNotAuthorizedError,
 } from '../../common/errors/domain-error';
 import { DispatchEventName } from '../../common/events/event-names';
 import { DispatchDecisionEntity } from '../infrastructure/persistence/dispatch-decision.entity';
@@ -25,13 +27,13 @@ export interface ConfirmDispatchOutput {
 }
 
 export class ConfirmDispatchUseCase {
-  private readonly logger = new Logger(ConfirmDispatchUseCase.name);
-
   constructor(
     private readonly decisionRepo: IDecisionRepository,
     private readonly tripService: ITripService,
     private readonly dataSource: DataSource,
     private readonly eventEmitter: EventEmitter2,
+    private readonly logger: PinoLogger = new PinoLogger({}),
+    private readonly metrics?: DispatchMetrics,
   ) {}
 
   async execute(input: ConfirmDispatchInput): Promise<ConfirmDispatchOutput> {
@@ -41,6 +43,16 @@ export class ConfirmDispatchUseCase {
     const decision = await this.decisionRepo.findByRequestId(input.requestId);
     if (!decision) {
       throw new RequestNotFoundError(`Request ${input.requestId} not found`, { requestId: input.requestId });
+    }
+
+    // REQ-SEC-1: Ownership check before acquiring any lock or transaction slot.
+    // Fail fast — do not waste DB resources on unauthorized requests.
+    if (decision.riderId !== input.riderId) {
+      this.metrics?.confirmTotal.inc({ outcome: 'not_authorized' });
+      throw new RequestNotAuthorizedError('rider not authorized for request', {
+        requestId: input.requestId,
+        riderId: input.riderId,
+      });
     }
 
     // Execute transaction: SELECT FOR UPDATE → idempotency check → create trip → update decision
@@ -55,11 +67,13 @@ export class ConfirmDispatchUseCase {
         .getOne();
 
       if (!lockedEntity) {
+        this.metrics?.confirmTotal.inc({ outcome: 'not_found' });
         throw new RequestNotFoundError(`Request ${input.requestId} not found`, { requestId: input.requestId });
       }
 
       // Idempotency check must be inside the lock to prevent races
       if (lockedEntity.tripId) {
+        this.metrics?.confirmTotal.inc({ outcome: 'already_confirmed' });
         throw new RequestAlreadyConfirmedError(`Request ${input.requestId} already confirmed`, {
           requestId: input.requestId,
         });
@@ -123,6 +137,7 @@ export class ConfirmDispatchUseCase {
 
     this.eventEmitter.emit(DispatchEventName.Completed, {
       requestId: input.requestId,
+      riderId: decision.riderId,
       tripId: trip.id,
       durationMs,
       winnerVehicleId: vehicleId,
@@ -134,6 +149,7 @@ export class ConfirmDispatchUseCase {
       if (input.choice === 'suggested') {
         this.eventEmitter.emit(DispatchEventName.SuggestionAccepted, {
           requestId: input.requestId,
+          riderId: decision.riderId,
           tripId: trip.id,
           safePointId: decision.suggestedPointId,
           ts: new Date().toISOString(),
@@ -141,6 +157,7 @@ export class ConfirmDispatchUseCase {
       } else {
         this.eventEmitter.emit(DispatchEventName.SuggestionRejected, {
           requestId: input.requestId,
+          riderId: decision.riderId,
           tripId: trip.id,
           safePointId: decision.suggestedPointId,
           ts: new Date().toISOString(),
@@ -148,7 +165,9 @@ export class ConfirmDispatchUseCase {
       }
     }
 
-    this.logger.log({ requestId: input.requestId, tripId: trip.id, choice: input.choice }, 'Dispatch confirmed');
+    // REQ-OBS-3: emit confirm success counter
+    this.metrics?.confirmTotal.inc({ outcome: 'assigned' });
+    this.logger.info({ requestId: input.requestId, tripId: trip.id, choice: input.choice }, 'Dispatch confirmed');
 
     return {
       tripId: trip.id,

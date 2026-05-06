@@ -43,6 +43,7 @@ describe('TypedEventBus', () => {
     const bus = new TypedEventBus();
     const payload: SuggestionShownPayload = {
       requestId: 'req-002',
+      riderId: 'rider-002',
       originalSafety: 0.3,
       suggestedSafety: 0.85,
       walkingM: 95,
@@ -62,6 +63,7 @@ describe('TypedEventBus', () => {
     const bus = new TypedEventBus();
     const payload: FallbackActivatedPayload = {
       requestId: 'req-003',
+      riderId: 'rider-003',
       reason: 'timeout',
       ts: new Date().toISOString(),
     };

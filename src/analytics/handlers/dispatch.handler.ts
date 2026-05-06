@@ -1,7 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { AnalyticsEventEntity } from '../infrastructure/analytics-event.entity';
 import { DispatchEventName } from '../../common/events/event-names';
 import {
@@ -16,11 +17,11 @@ import {
 
 @Injectable()
 export class DispatchAnalyticsHandler {
-  private readonly logger = new Logger(DispatchAnalyticsHandler.name);
-
   constructor(
     @InjectRepository(AnalyticsEventEntity)
     private readonly analyticsRepo: Repository<AnalyticsEventEntity>,
+    @InjectPinoLogger(DispatchAnalyticsHandler.name)
+    private readonly logger: PinoLogger,
   ) {}
 
   @OnEvent(DispatchEventName.RequestCreated, { async: true })
@@ -40,7 +41,7 @@ export class DispatchAnalyticsHandler {
       DispatchEventName.SuggestionShown,
       payload.requestId,
       undefined,
-      undefined,
+      payload.riderId,
       payload as unknown as Record<string, unknown>,
     );
   }
@@ -51,7 +52,7 @@ export class DispatchAnalyticsHandler {
       DispatchEventName.SuggestionAccepted,
       payload.requestId,
       payload.tripId,
-      undefined,
+      payload.riderId,
       payload as unknown as Record<string, unknown>,
     );
   }
@@ -62,7 +63,7 @@ export class DispatchAnalyticsHandler {
       DispatchEventName.SuggestionRejected,
       payload.requestId,
       payload.tripId,
-      undefined,
+      payload.riderId,
       payload as unknown as Record<string, unknown>,
     );
   }
@@ -73,7 +74,7 @@ export class DispatchAnalyticsHandler {
       DispatchEventName.FallbackActivated,
       payload.requestId,
       undefined,
-      undefined,
+      payload.riderId,
       payload as unknown as Record<string, unknown>,
     );
   }
@@ -84,7 +85,7 @@ export class DispatchAnalyticsHandler {
       DispatchEventName.Completed,
       payload.requestId,
       payload.tripId,
-      undefined,
+      payload.riderId,
       payload as unknown as Record<string, unknown>,
     );
   }
@@ -112,7 +113,9 @@ export class DispatchAnalyticsHandler {
         eventName,
         requestId: requestId ?? null,
         tripId: tripId ?? null,
-        riderId: riderId ?? null,
+        // REQ-TRC-3: riderId passed directly — all 5 dispatch payloads now
+        // include riderId as a required field, so no coalescing needed.
+        riderId: riderId,
         payloadJson: (payload as Record<string, unknown>) ?? {},
       });
       await this.analyticsRepo.save(entity);

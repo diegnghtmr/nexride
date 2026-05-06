@@ -7,6 +7,7 @@ import {
   SafePointReasonRequiredError,
   RbacForbiddenError,
   DistanceProviderTimeoutError,
+  RequestNotAuthorizedError,
 } from '../../../../src/common/errors/domain-error';
 import { DomainExceptionFilter } from '../../../../src/common/filters/domain-exception.filter';
 
@@ -111,5 +112,26 @@ describe('DomainExceptionFilter', () => {
     expect(err).toBeInstanceOf(DomainError);
     expect(err.code).toBe('NO_AVAILABILITY');
     expect(err.httpStatus).toBe(422);
+  });
+
+  // REQ-SEC-2 — TDD RED: RequestNotAuthorizedError shape and filter mapping
+  it('RequestNotAuthorizedError has code REQUEST_NOT_AUTHORIZED and httpStatus 403', () => {
+    const err = new RequestNotAuthorizedError('rider not authorized', { requestId: 'req-001', riderId: 'rider-002' });
+
+    expect(err.code).toBe('REQUEST_NOT_AUTHORIZED');
+    expect(err.httpStatus).toBe(403);
+    expect(err).toBeInstanceOf(DomainError);
+    expect(err).toBeInstanceOf(Error);
+  });
+
+  it('maps RequestNotAuthorizedError to HTTP 403 via DomainExceptionFilter', () => {
+    const err = new RequestNotAuthorizedError('rider not authorized');
+
+    filter.catch(err, host);
+
+    expect(statusMock).toHaveBeenCalledWith(HttpStatus.FORBIDDEN);
+    expect(jsonMock).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'REQUEST_NOT_AUTHORIZED', message: 'rider not authorized' }),
+    );
   });
 });
