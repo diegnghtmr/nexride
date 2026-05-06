@@ -23,7 +23,7 @@
     "audit": "npm audit --audit-level=high --omit=dev",
     "gitleaks": "gitleaks detect --source . --no-banner",
     "migrate": "ts-node -e \"require('./src/migrate').run()\"",
-    "ci:local": "npm run lint && npm run typecheck && npm run arch:check && npm run test:cov && npm run test:integration && npm run audit"
+    "ci:local": "bash scripts/ci-local.sh"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.19",
