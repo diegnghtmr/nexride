@@ -28,9 +28,9 @@
 
 ### architecture-rules
 **Triggers**: any file under `src/`.
-- `src/dispatch/**` MUST NOT import from `fleet/**`, `safe-points/**`, `trip/**`, `analytics/**` directly. Only `common/interfaces/**` and `common/events/**`.
+- `src/dispatch/**` MUST NOT import from other feature modules directly. Only `common/interfaces/**` and `common/events/**` allowed for ports/events. **Exception**: `*.module.ts` files MAY import other `*.module.ts` files for NestJS DI composition at the composition root — this is NOT a domain dependency and is explicitly allowed by the `pathNot` clause in `.dependency-cruiser.cjs`. The rule enforces only the `domain/`↔`domain/` and `application/`↔`application/` boundary, NOT module-to-module wiring imports.
 - Reverse: no other module may import from `dispatch/domain/**` or `dispatch/application/**`.
-- `dependency-cruiser` rules in `.dependency-cruiser.cjs` enforce this. CI job `architecture-rules` blocks merge on violation.
+- CI job `architecture-rules` blocks merge on violation.
 
 ### ci-github-actions
 **Triggers**: `.github/workflows/*.yml`.
