@@ -81,7 +81,7 @@
 | DD-01 §2 | Dispatch consume fleet/safe-points solo via interfaces | Implementado | `src/common/interfaces/IFleetService.ts`, `ISafePointsService.ts` |
 | DD-01 §3 | In-process event bus para analytics | Implementado | `src/common/events/`, `src/analytics/handlers/dispatch.handler.ts` |
 | DD-01 §4 | Hexagonal — dominio framework-agnostic | Implementado | `src/dispatch/domain/**` (cero imports @nestjs) |
-| DD-01 §5 | Migraciones explícitas TypeORM | Implementado | `src/migrations/1700000000-1700000005.ts` |
+| DD-01 §5 | Migraciones explícitas TypeORM | Implementado | `src/migrations/` (6 migraciones: EnablePostgis, CreateSafePoints, CreateDispatchDecisions, CreateTrips, CreateAnalyticsEvents, AddDestinationToDispatchDecisions) |
 
 ---
 
