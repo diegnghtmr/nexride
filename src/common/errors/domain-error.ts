@@ -47,3 +47,8 @@ export class MissingSuggestedCoordinatesError extends DomainError {
   readonly code = 'MISSING_SUGGESTED_COORDINATES';
   readonly httpStatus = 422;
 }
+
+export class RequestNotAuthorizedError extends DomainError {
+  readonly code = 'REQUEST_NOT_AUTHORIZED';
+  readonly httpStatus = 403;
+}
