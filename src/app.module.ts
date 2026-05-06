@@ -101,6 +101,6 @@ import { AddDestinationToDispatchDecisions17000000010005 } from './migrations/17
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
     // RequestIdMiddleware assigns correlationId to all requests
-    consumer.apply(RequestIdMiddleware).forRoutes('*');
+    consumer.apply(RequestIdMiddleware).forRoutes('/{*splat}');
   }
 }

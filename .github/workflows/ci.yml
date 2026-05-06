@@ -12,6 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -188,10 +190,10 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      # Audit gate: critical severity. Production-side highs are formally accepted with
-      # CVE-by-CVE exploitability analysis and a hard NestJS 11 migration deadline (2026-07-01)
-      # in docs/adr/ADR-006-cve-deferrals.md. After 2026-07-01 this gate MUST be raised back to high.
-      - run: npm audit --audit-level=critical
+      # Audit gate: high severity — aligned with docs/guia-implementacion.md §CT-07.
+      # Post NestJS 11 migration: 0 high-severity vulnerabilities in production dependencies.
+      # NestJS 11 + Express 5 + path-to-regexp 8 close all 7 highs documented in ADR-006 (now superseded).
+      - run: npm audit --audit-level=high --omit=dev
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

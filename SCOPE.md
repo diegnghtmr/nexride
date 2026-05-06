@@ -76,7 +76,7 @@ La justificación del alcance parcial es técnica y documentada: el rubric del e
 | CT-04  | CT   | Implementado     | `.github/workflows/ci.yml` (job `performance-smoke`)                                                                                 | k6 p95<800ms, p99<1200ms (gate alineado con NFR-01)                                                                                  | Bloquea PR en fallo.                                                                                                                                                                     |
 | CT-05  | CT   | Implementado     | `.dependency-cruiser.cjs` (regla `dispatch-no-cross-module-imports`)                                                                 | `test/architecture/dispatch-isolation.spec.ts` + CI job `architecture-rules`                                                         | Dispatch solo consume `common/interfaces/**` y `common/events/**`.                                                                                                                       |
 | CT-06  | CT   | Implementado     | `.dependency-cruiser.cjs` (regla `siblings-no-import-dispatch-internals`)                                                            | `test/architecture/dispatch-isolation.spec.ts` + CI job `architecture-rules`                                                         | Módulos externos no importan `dispatch/domain/**` ni `dispatch/application/**`.                                                                                                          |
-| CT-07  | CT   | Implementado con excepción formal (ADR-006) | `.github/workflows/ci.yml` (job `security-static`)                                                                                   | `npm audit --audit-level=critical` + gitleaks 0 secretos. Highs de producción aceptados bajo ADR-006 con análisis CVE-por-CVE y deadline duro 2026-07-01. | Bloquea PR ante criticals (0 actuales) y secretos. La guía pide `--audit-level=high`; la desviación está formalizada en `docs/adr/ADR-006-cve-deferrals.md` con análisis de explotabilidad y plazo de migración a NestJS 11. Ver §5 Variances. |
+| CT-07  | CT   | Implementado     | `.github/workflows/ci.yml` (job `security-static`, job `audit`)                                                                       | `npm audit --audit-level=high --omit=dev` 0 highs + gitleaks 0 secretos. Post migración NestJS 11: 0 highs en deps de producción. | Bloquea PR ante highs y secretos. Alineado con `docs/guia-implementacion.md` §CT-07. Gate de seguridad documentado en ADR-007 (supersede ADR-006 histórico). |
 | CT-08  | CT   | Implementado     | `.github/workflows/ci.yml` (job `build-openapi`) + `scripts/generate-openapi.ts`                                                     | `dist/openapi.json` generado y archivado como artifact                                                                               | Bloquea PR en fallo.                                                                                                                                                                     |
 | CT-09  | CT   | Implementado     | `.github/workflows/ci.yml` (job `architecture-rules`)                                                                                | `npx depcruise --config .dependency-cruiser.cjs --output-type err src` → 0 violaciones                                               | Bloquea PR en fallo.                                                                                                                                                                     |
 | CT-10  | CT   | Implementado     | `SCOPE.md` (este archivo, en raíz del repositorio)                                                                                   | CI: `SCOPE.md` presente en checkout — el job `build-openapi` lo verifica implícitamente                                              | Cumple ST-01.                                                                                                                                                                            |
@@ -118,19 +118,7 @@ Estas adaptaciones mantienen el contrato de arquitectura del DD-01 y DD-02 mient
 | ----------------------- | ----------- | ------------------- | --------------------------------------------------- |
 | k6 p99 `/rides/request` | <1200ms     | <1200ms             | NFR-01 — gate alineado (ADR-004)                    |
 | k6 p95 `/rides/request` | <800ms      | <800ms              | NFR-01 (mismo umbral)                               |
-| npm audit `high`        | **excepción formal** | 0 high              | Gate efectivo `--audit-level=critical`. 7 highs de producción aceptados bajo `ADR-006` con análisis CVE-por-CVE y deadline 2026-07-01 (migración NestJS 11). Tras esa fecha el gate vuelve a `high`. |
-| npm audit `critical`    | bloqueante  | 0 critical          | Gate `--audit-level=critical` activo; bloquea cualquier crítica futura |
-
-### Excepción formal — highs de producción (ADR-006)
-
-El gate efectivo en CI es `npm audit --audit-level=critical` (no `high` como pide la guía). La desviación está formalizada en `docs/adr/ADR-006-cve-deferrals.md` con:
-
-- 7 CVEs high de producción analizados uno por uno (paquete, CVSS, ruta de código vulnerable, **explotabilidad real en NexRide** verificada con ripgrep contra `src/`, mitigaciones, riesgo residual).
-- Veredicto: 3 con ruta vulnerable inexistente en el código (None), 4 alcanzables en teoría pero mitigadas a Low.
-- Causa raíz: todos los fixes requieren upgrade semver-major a NestJS 11 + Express 5 + Multer 2, fuera del alcance del MVP.
-- **Deadline duro 2026-07-01**: en esa fecha el gate vuelve a `--audit-level=high` automáticamente, bloqueando cualquier PR si la migración no se completó.
-- Tracking change: `nexride-nestjs11-migration`.
-- Critical (0 actuales) sigue bloqueando el pipeline.
+| npm audit `high`        | bloqueante  | 0 high              | Gate `--audit-level=high --omit=dev` activo post migración NestJS 11. 0 highs en deps de producción. Alineado con `docs/guia-implementacion.md` §CT-07. |
 
 ---
 
@@ -151,7 +139,7 @@ npm run test:unit
 npm run test:unit -- --coverage
 npm run test:integration
 npm run openapi:generate
-npm audit --audit-level=critical   # gate efectivo CI; ver ADR-006 para highs de producción
+npm audit --audit-level=high --omit=dev   # gate CI; ver ADR-007 para composición del security gate
 ```
 
 ---
