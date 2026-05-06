@@ -59,9 +59,7 @@ async function seedRedis(): Promise<void> {
     ];
 
     for (const v of vehicles) {
-      await (redis.geoadd as (...args: unknown[]) => Promise<unknown>)(
-        'fleet:geo', v.lng, v.lat, v.id,
-      );
+      await (redis.geoadd as (...args: unknown[]) => Promise<unknown>)('fleet:geo', v.lng, v.lat, v.id);
       await redis.hset(`fleet:vehicles:${v.id}`, {
         battery_pct: String(v.battery),
         eligible: '1',
