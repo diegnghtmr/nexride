@@ -19,6 +19,8 @@ import IORedis from 'ioredis';
 import { register } from 'prom-client';
 import { AppModule } from '../../../src/app.module';
 import { DomainExceptionFilter } from '../../../src/common/filters/domain-exception.filter';
+import { resetMetricsRegistry } from '../../../src/common/observability/metrics.registry';
+import { getCounterValue } from '../../helpers/prometheus-parser';
 
 const ORIGIN = { lat: 4.65, lng: -74.05 };
 const DESTINATION = { lat: 4.7, lng: -74.06 };
@@ -34,6 +36,8 @@ describe('GET /metrics (integration)', () => {
     // prom-client global registry persists between Nest test bootstraps;
     // clear before module compile to avoid duplicate-metric errors. (ADR-4)
     register.clear();
+    // Reset the module-level singleton so the fresh Registry is picked up. (F1/F2)
+    resetMetricsRegistry();
 
     [pgContainer, redisContainer] = await Promise.all([
       new PostgreSqlContainer('postgis/postgis:16-3.4')
@@ -115,7 +119,7 @@ describe('GET /metrics (integration)', () => {
       await redisClient.del('fleet:vehicles:VH-200');
     });
 
-    it('dispatch_evaluate_total counter present in /metrics after an evaluate call', async () => {
+    it('dispatch_evaluate_total counter value is greater than 0 after an evaluate call', async () => {
       await request(app.getHttpServer())
         .post('/rides/request')
         .set('x-test-rider-id', 'rider-metrics-test')
@@ -124,10 +128,10 @@ describe('GET /metrics (integration)', () => {
         .expect(201);
 
       const metricsRes = await request(app.getHttpServer()).get('/metrics').expect(200);
-      expect(metricsRes.text).toMatch(/dispatch_evaluate_total/);
+      expect(getCounterValue(metricsRes.text, 'dispatch_evaluate_total', { outcome: 'success' })).toBeGreaterThan(0);
     });
 
-    it('dispatch_evaluate_duration_ms_bucket present in /metrics after an evaluate call', async () => {
+    it('dispatch_evaluate_duration_ms_count is greater than 0 after an evaluate call', async () => {
       await request(app.getHttpServer())
         .post('/rides/request')
         .set('x-test-rider-id', 'rider-metrics-test')
@@ -136,10 +140,10 @@ describe('GET /metrics (integration)', () => {
         .expect(201);
 
       const metricsRes = await request(app.getHttpServer()).get('/metrics').expect(200);
-      expect(metricsRes.text).toMatch(/dispatch_evaluate_duration_ms_bucket/);
+      expect(getCounterValue(metricsRes.text, 'dispatch_evaluate_duration_ms_count')).toBeGreaterThan(0);
     });
 
-    it('dispatch_confirm_total counter present in /metrics after a confirm call', async () => {
+    it('dispatch_confirm_total counter value is greater than 0 after a confirm call', async () => {
       const evalRes = await request(app.getHttpServer())
         .post('/rides/request')
         .set('x-test-rider-id', 'rider-metrics-test')
@@ -155,10 +159,10 @@ describe('GET /metrics (integration)', () => {
         .expect(201);
 
       const metricsRes = await request(app.getHttpServer()).get('/metrics').expect(200);
-      expect(metricsRes.text).toMatch(/dispatch_confirm_total/);
+      expect(getCounterValue(metricsRes.text, 'dispatch_confirm_total', { outcome: 'success' })).toBeGreaterThan(0);
     });
 
-    it('dispatch_candidates_count_bucket present in /metrics after an evaluate call', async () => {
+    it('dispatch_candidates_count_count is greater than 0 after an evaluate call', async () => {
       await request(app.getHttpServer())
         .post('/rides/request')
         .set('x-test-rider-id', 'rider-metrics-test')
@@ -167,7 +171,7 @@ describe('GET /metrics (integration)', () => {
         .expect(201);
 
       const metricsRes = await request(app.getHttpServer()).get('/metrics').expect(200);
-      expect(metricsRes.text).toMatch(/dispatch_candidates_count_bucket/);
+      expect(getCounterValue(metricsRes.text, 'dispatch_candidates_count_count')).toBeGreaterThan(0);
     });
   });
 });
