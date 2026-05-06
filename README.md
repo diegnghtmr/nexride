@@ -191,7 +191,7 @@ npm run build               # nest build → dist/
 npm run openapi:generate    # ts-node scripts/generate-openapi.ts → dist/openapi.json
 
 # Seguridad
-npm run audit               # npm audit --audit-level=critical
+npm run audit               # npm audit --audit-level=high --omit=dev
 npm run gitleaks            # gitleaks secrets scan
 
 # Pipeline local completo (mismo orden que CI)
@@ -248,7 +248,7 @@ DD-01 especifica un bus de eventos in-process para el monolito MVP. Kafka agrega
 
 ## Limitaciones conocidas
 
-1. **npm audit high**: 15 highs totales reportados por `npm audit` (incluye dev tooling: webpack, @nestjs/cli, testcontainers); **7 highs afectan el árbol de producción y están aceptados formalmente bajo ADR-006** con análisis CVE-por-CVE (`docs/adr/ADR-006-cve-deferrals.md`) y deadline 2026-07-01. Sin fix disponible sin migrar a NestJS 11 (breaking change). Gate CI: `--audit-level=critical` (0 críticas).
+1. **npm audit — dev tooling highs**: `npm audit --audit-level=high --omit=dev` retorna exit 0 — **0 highs en el árbol de producción**. NestJS 11 fue migrado en commit `7f3eb09` (tag `v0.1.4-mvp`), resolviendo los 7 highs de producción que existían en versiones anteriores (aceptados formalmente bajo ADR-006, ahora superseded por ADR-007). Dev tooling (webpack, @nestjs/cli, testcontainers y similares) puede reportar highs en `npm audit` sin `--omit=dev`; estos no afectan el árbol de producción y no son bloqueantes. Gate CI: `--audit-level=high --omit=dev` (exit 0 requerido).
 
 2. **dependency-cruiser en Node >=22**: `npx depcruise` puede fallar con Node 25 (experimental VM modules). CI usa Node 20. El test de arquitectura detecta la versión y salta con advertencia en Node >=22.
 
