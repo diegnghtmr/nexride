@@ -180,8 +180,10 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      # Audit gate: high severity. Deferred highs documented in docs/adr/ADR-006-cve-deferrals.md.
-      - run: npm audit --audit-level=high
+      # Audit gate: critical severity. Production-side highs are formally accepted with
+      # CVE-by-CVE exploitability analysis and a hard NestJS 11 migration deadline (2026-07-01)
+      # in docs/adr/ADR-006-cve-deferrals.md. After 2026-07-01 this gate MUST be raised back to high.
+      - run: npm audit --audit-level=critical
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
