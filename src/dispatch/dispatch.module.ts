@@ -4,6 +4,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PinoLogger } from 'nestjs-pino';
+import { ObservabilityModule, DISPATCH_METRICS } from '../common/observability/observability.module';
+import { DispatchMetrics } from '../common/observability/metrics.registry';
 import { CandidateGenerator } from './domain/services/candidate-generator';
 import { CandidateFilter } from './domain/services/candidate-filter';
 import { ScoringEngine } from './domain/services/scoring-engine';
@@ -41,6 +43,7 @@ export const DECISION_RECORDER = Symbol('DecisionRecorder');
     FleetModule,
     SafePointsModule,
     TripModule,
+    ObservabilityModule,
     TypeOrmModule.forFeature([DispatchDecisionEntity]),
   ],
   providers: [
@@ -128,6 +131,7 @@ export const DECISION_RECORDER = Symbol('DecisionRecorder');
         DECISION_RECORDER,
         EventEmitter2,
         PinoLogger,
+        DISPATCH_METRICS,
       ],
       useFactory: (
         candidateGenerator: CandidateGenerator,
@@ -138,6 +142,7 @@ export const DECISION_RECORDER = Symbol('DecisionRecorder');
         decisionRecorder: DecisionRecorder,
         eventEmitter: EventEmitter2,
         logger: PinoLogger,
+        metrics: DispatchMetrics,
       ) => {
         const cfg = loadDispatchConfig(process.env);
         logger.setContext(EvaluateDispatchUseCase.name);
@@ -151,21 +156,23 @@ export const DECISION_RECORDER = Symbol('DecisionRecorder');
           eventEmitter,
           cfg.pipelineTimeoutMs,
           logger,
+          metrics,
         );
       },
     },
     {
       provide: CONFIRM_DISPATCH_USE_CASE,
-      inject: [DECISION_REPOSITORY, TRIP_SERVICE, DataSource, EventEmitter2, PinoLogger],
+      inject: [DECISION_REPOSITORY, TRIP_SERVICE, DataSource, EventEmitter2, PinoLogger, DISPATCH_METRICS],
       useFactory: (
         decisionRepo: DecisionRepository,
         tripService: ITripService,
         dataSource: DataSource,
         eventEmitter: EventEmitter2,
         logger: PinoLogger,
+        metrics: DispatchMetrics,
       ) => {
         logger.setContext(ConfirmDispatchUseCase.name);
-        return new ConfirmDispatchUseCase(decisionRepo, tripService, dataSource, eventEmitter, logger);
+        return new ConfirmDispatchUseCase(decisionRepo, tripService, dataSource, eventEmitter, logger, metrics);
       },
     },
 

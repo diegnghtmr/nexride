@@ -1,6 +1,7 @@
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PinoLogger } from 'nestjs-pino';
 import { randomUUID } from 'node:crypto';
+import { DispatchMetrics } from '../../common/observability/metrics.registry';
 import { CandidateGenerator } from '../domain/services/candidate-generator';
 import { CandidateFilter } from '../domain/services/candidate-filter';
 import { ScoringEngine } from '../domain/services/scoring-engine';
@@ -67,6 +68,7 @@ export class EvaluateDispatchUseCase {
     private readonly eventEmitter: EventEmitter2,
     pipelineTimeoutMs: number = 1200,
     private readonly logger: PinoLogger = new PinoLogger({}),
+    private readonly metrics?: DispatchMetrics,
   ) {
     this.pipelineTimeoutMs = pipelineTimeoutMs;
   }
@@ -97,7 +99,12 @@ export class EvaluateDispatchUseCase {
     );
 
     try {
-      return await Promise.race([pipelinePromise, timeoutPromise]);
+      const result = await Promise.race([pipelinePromise, timeoutPromise]);
+      // REQ-OBS-1: emit evaluate success counter
+      this.metrics?.evaluateTotal.inc({ outcome: 'success' });
+      // REQ-OBS-2: emit evaluate duration histogram
+      this.metrics?.evaluateDurationMs.observe(Date.now() - startMs);
+      return result;
     } catch (err: unknown) {
       const isTimeout = err instanceof Error && err.message === 'PIPELINE_TIMEOUT';
       const fallbackReason = isTimeout ? 'timeout' : 'no_candidates';
@@ -127,6 +134,10 @@ export class EvaluateDispatchUseCase {
           suggestionStatus: 'not_shown',
           pipelineDurationMs,
         });
+
+        // REQ-OBS-1: emit fallback counter and duration
+        this.metrics?.evaluateTotal.inc({ outcome: 'fallback' });
+        this.metrics?.evaluateDurationMs.observe(pipelineDurationMs);
 
         return {
           requestId,
@@ -159,6 +170,9 @@ export class EvaluateDispatchUseCase {
 
     // Phase 2: Filter
     const { passed: filtered } = this.candidateFilter.filter(rawVehicles, tripDistanceKm);
+
+    // REQ-OBS-4: record candidate count post-filter
+    this.metrics?.candidatesCount.observe(filtered.length);
 
     if (filtered.length === 0) {
       throw new Error('EMPTY_AFTER_FILTER');

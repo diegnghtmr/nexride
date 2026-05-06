@@ -2,6 +2,10 @@ import { Registry, Histogram, Counter } from 'prom-client';
 
 const PIPELINE_BUCKETS = [25, 50, 100, 200, 400, 800, 1200, 2000];
 
+// Bucket sets for F2 metrics (ADR-3)
+const EVALUATE_DURATION_BUCKETS = [10, 50, 100, 200, 400, 800];
+const CANDIDATES_COUNT_BUCKETS = [0, 1, 2, 5, 10, 20, 50];
+
 export interface DispatchMetrics {
   pipelineDuration: Histogram;
   phaseDuration: Histogram;
@@ -10,6 +14,11 @@ export interface DispatchMetrics {
   suggestionTotal: Counter;
   fallbackTotal: Counter;
   distanceProviderCalls: Counter;
+  // F2 metrics — REQ-OBS-1..4
+  evaluateTotal: Counter;
+  evaluateDurationMs: Histogram;
+  confirmTotal: Counter;
+  candidatesCount: Histogram;
 }
 
 export function createMetricsRegistry(): { registry: Registry; metrics: DispatchMetrics } {
@@ -68,6 +77,35 @@ export function createMetricsRegistry(): { registry: Registry; metrics: Dispatch
     registers: [registry],
   });
 
+  // F2 metrics (REQ-OBS-1..4, ADR-3)
+  const evaluateTotal = new Counter({
+    name: 'dispatch_evaluate_total',
+    help: 'Dispatch evaluate outcomes',
+    labelNames: ['outcome'],
+    registers: [registry],
+  });
+
+  const evaluateDurationMs = new Histogram({
+    name: 'dispatch_evaluate_duration_ms',
+    help: 'Dispatch evaluate pipeline duration in milliseconds',
+    buckets: EVALUATE_DURATION_BUCKETS,
+    registers: [registry],
+  });
+
+  const confirmTotal = new Counter({
+    name: 'dispatch_confirm_total',
+    help: 'Dispatch confirm outcomes',
+    labelNames: ['outcome'],
+    registers: [registry],
+  });
+
+  const candidatesCount = new Histogram({
+    name: 'dispatch_candidates_count',
+    help: 'Number of candidate vehicles per dispatch evaluation',
+    buckets: CANDIDATES_COUNT_BUCKETS,
+    registers: [registry],
+  });
+
   return {
     registry,
     metrics: {
@@ -78,6 +116,10 @@ export function createMetricsRegistry(): { registry: Registry; metrics: Dispatch
       suggestionTotal,
       fallbackTotal,
       distanceProviderCalls,
+      evaluateTotal,
+      evaluateDurationMs,
+      confirmTotal,
+      candidatesCount,
     },
   };
 }

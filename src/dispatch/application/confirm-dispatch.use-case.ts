@@ -3,6 +3,7 @@ import { PinoLogger } from 'nestjs-pino';
 import { DataSource } from 'typeorm';
 import { IDecisionRepository } from '../../common/interfaces/IDecisionRepository';
 import { ITripService } from '../../common/interfaces/ITripService';
+import { DispatchMetrics } from '../../common/observability/metrics.registry';
 import {
   RequestNotFoundError,
   RequestAlreadyConfirmedError,
@@ -32,6 +33,7 @@ export class ConfirmDispatchUseCase {
     private readonly dataSource: DataSource,
     private readonly eventEmitter: EventEmitter2,
     private readonly logger: PinoLogger = new PinoLogger({}),
+    private readonly metrics?: DispatchMetrics,
   ) {}
 
   async execute(input: ConfirmDispatchInput): Promise<ConfirmDispatchOutput> {
@@ -46,6 +48,7 @@ export class ConfirmDispatchUseCase {
     // REQ-SEC-1: Ownership check before acquiring any lock or transaction slot.
     // Fail fast — do not waste DB resources on unauthorized requests.
     if (decision.riderId !== input.riderId) {
+      this.metrics?.confirmTotal.inc({ outcome: 'not_authorized' });
       throw new RequestNotAuthorizedError('rider not authorized for request', {
         requestId: input.requestId,
         riderId: input.riderId,
@@ -64,11 +67,13 @@ export class ConfirmDispatchUseCase {
         .getOne();
 
       if (!lockedEntity) {
+        this.metrics?.confirmTotal.inc({ outcome: 'not_found' });
         throw new RequestNotFoundError(`Request ${input.requestId} not found`, { requestId: input.requestId });
       }
 
       // Idempotency check must be inside the lock to prevent races
       if (lockedEntity.tripId) {
+        this.metrics?.confirmTotal.inc({ outcome: 'already_confirmed' });
         throw new RequestAlreadyConfirmedError(`Request ${input.requestId} already confirmed`, {
           requestId: input.requestId,
         });
@@ -157,6 +162,8 @@ export class ConfirmDispatchUseCase {
       }
     }
 
+    // REQ-OBS-3: emit confirm success counter
+    this.metrics?.confirmTotal.inc({ outcome: 'assigned' });
     this.logger.info({ requestId: input.requestId, tripId: trip.id, choice: input.choice }, 'Dispatch confirmed');
 
     return {
