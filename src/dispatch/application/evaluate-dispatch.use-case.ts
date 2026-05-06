@@ -219,6 +219,13 @@ export class EvaluateDispatchUseCase {
 
     const suggestedPointId = decision.suggestion?.safePointId ?? undefined;
 
+    // Resolve the safe-point location so it can be persisted and used at confirm time (REQ-FIX-04)
+    const suggestedSafePoint = suggestedPointId ? safePointMap.get(suggestedPointId) : undefined;
+    const suggestedLocation =
+      suggestedSafePoint
+        ? { lat: suggestedSafePoint.location.lat, lng: suggestedSafePoint.location.lng }
+        : undefined;
+
     // Phase 5: Persist preliminary decision
     await this.decisionRecorder.savePreliminary({
       requestId,
@@ -227,6 +234,7 @@ export class EvaluateDispatchUseCase {
       destination: { lat: destination.lat, lng: destination.lng },
       winnerVehicleId: decision.primary.vehicleId,
       suggestedPointId,
+      suggestedLocation,
       scoresJson,
       suggestionStatus: decision.suggestion ? 'shown' : 'not_shown',
       pipelineDurationMs,

@@ -42,3 +42,8 @@ export class DistanceProviderTimeoutError extends DomainError {
   readonly code = 'DISTANCE_PROVIDER_TIMEOUT';
   readonly httpStatus = 503;
 }
+
+export class MissingSuggestedCoordinatesError extends DomainError {
+  readonly code = 'MISSING_SUGGESTED_COORDINATES';
+  readonly httpStatus = 422;
+}
