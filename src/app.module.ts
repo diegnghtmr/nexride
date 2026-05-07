@@ -44,8 +44,9 @@ import { RenameAnalyticsColumns17000000010006 } from './migrations/1700000001000
     ObservabilityModule,
 
     // NFR-17: two-tier rate limiting — 100 req/min per user (JWT userId), 1000 req/min per IP.
-    // ConfigurableThrottlerGuard.getTracker returns req.user?.id ?? req.ip for BOTH throttlers;
-    // each named throttler maintains its own independent bucket under that key.
+    // Each named throttler has its own getTracker so keys are independent:
+    //   user throttler: key = req.user?.id ?? req.ip  (authenticated users bucketed by userId)
+    //   ip   throttler: key = req.ip                   (all traffic bucketed by IP regardless of auth)
     //
     // Escape hatches (per route or controller):
     //   @SkipThrottle({ user: true, ip: true })   — skip all named throttlers
@@ -61,14 +62,26 @@ import { RenameAnalyticsColumns17000000010006 } from './migrations/1700000001000
         name: 'user',
         ttl: 60_000,
         limit: parseInt(process.env['THROTTLE_USER_LIMIT'] ?? '100', 10),
+        getTracker: (req: Record<string, unknown>) => {
+          const user = req['user'] as { id?: unknown } | undefined;
+          const userId = user?.id;
+          return userId ? (userId as string) : ((req['ip'] as string | undefined) ?? 'anonymous');
+        },
       },
       {
         name: 'ip',
         ttl: 60_000,
-        limit: parseInt(
-          process.env['THROTTLER_TEST_LIMIT'] ?? process.env['THROTTLE_IP_LIMIT'] ?? '1000',
-          10,
-        ),
+        // Limit is a lazy function so THROTTLER_TEST_LIMIT is read at request time,
+        // not at module-decorator evaluation time (which runs at import in Node.js).
+        // This allows integration tests to set the env var in beforeAll and have it
+        // take effect even though AppModule is statically imported at file parse time.
+        limit: () =>
+          parseInt(
+            process.env['THROTTLER_TEST_LIMIT'] ?? process.env['THROTTLE_IP_LIMIT'] ?? '1000',
+            10,
+          ),
+        getTracker: (req: Record<string, unknown>) =>
+          (req['ip'] as string | undefined) ?? 'anonymous',
       },
     ]),
 

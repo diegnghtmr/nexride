@@ -49,10 +49,8 @@ describe('Two-Tier Throttling Integration (T-004)', () => {
     savedThrottlerTestLimit = process.env['THROTTLER_TEST_LIMIT'];
 
     delete process.env['THROTTLER_DISABLED'];
-
-    // Scale down IP throttler limit: 10 instead of 1000 (test only).
-    // AppModule reads THROTTLER_TEST_LIMIT synchronously in ThrottlerModule.forRoot.
-    process.env['THROTTLER_TEST_LIMIT'] = '10';
+    // Clear THROTTLER_TEST_LIMIT — each scenario sets it per-test in beforeEach/it.
+    delete process.env['THROTTLER_TEST_LIMIT'];
     process.env['TEST_CONTEXT_GUARD_ENABLED'] = 'true';
     process.env['NODE_ENV'] = 'test';
 
@@ -119,11 +117,14 @@ describe('Two-Tier Throttling Integration (T-004)', () => {
   });
 
   /**
-   * Reset in-memory throttler counters between scenarios to prevent bleed.
+   * Reset in-memory throttler counters and env overrides between scenarios to prevent bleed.
    * ThrottlerStorageService uses an internal Map (_storage); we clear it via
    * the public `storage` getter.
    */
   afterEach(() => {
+    // Clear IP limit override so next scenario starts fresh
+    delete process.env['THROTTLER_TEST_LIMIT'];
+
     const service = throttlerStorage as unknown as { _storage?: Map<string, unknown>; storage?: Map<string, unknown> };
     if (service._storage instanceof Map) {
       service._storage.clear();
@@ -133,6 +134,10 @@ describe('Two-Tier Throttling Integration (T-004)', () => {
   });
 
   it('Scenario 1 — per-user throttler: 100 requests succeed, 101st returns 429', async () => {
+    // IP throttler: production default (1000) — don't set THROTTLER_TEST_LIMIT so the
+    // user throttler (limit 100) trips before the IP throttler (limit 1000).
+    delete process.env['THROTTLER_TEST_LIMIT'];
+
     const server = app.getHttpServer();
     const riderId = 'throttle-user-u1';
 
@@ -164,6 +169,10 @@ describe('Two-Tier Throttling Integration (T-004)', () => {
   }, 120_000);
 
   it('Scenario 2 — per-IP throttler: THROTTLER_TEST_LIMIT requests succeed, (limit+1)th returns 429', async () => {
+    // Scale down IP limit to 10 for test speed (1001 sequential requests would be too slow).
+    // The ip throttler limit function reads THROTTLER_TEST_LIMIT lazily per request.
+    process.env['THROTTLER_TEST_LIMIT'] = '10';
+
     const server = app.getHttpServer();
     // THROTTLER_TEST_LIMIT=10 → IP throttler limit is 10
     const ipLimit = parseInt(process.env['THROTTLER_TEST_LIMIT'] ?? '10', 10);
