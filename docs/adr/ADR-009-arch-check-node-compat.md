@@ -46,7 +46,17 @@ runs on `node-version: 20` and is the authoritative gate for every PR.
   env that uses Node 24/25 for other work. The skip is correct; only its UX
   was bad before this ADR.
 - **Pin engines to Node 20 only**: blocks devs from using newer Node for
-  everything else. Repo already declares `"node": ">=20.0.0 <23.0.0"` in
-  `package.json` which is intentionally permissive.
+  everything else. Repo declares `"node": ">=20.0.0 <22.0.0"` in
+  `package.json` which is intentionally permissive up to (but not including) Node 22.
 - **Upgrade to a depcruise version that supports Node ≥22**: at the time of
   writing (v16.4.0), no such version exists. This is tracked in the TODO above.
+
+## Amendment — v0.1.12-mvp engines tightening
+
+`package.json` engines tightened from `<23.0.0` to `<22.0.0` to match the
+supported matrix documented in this ADR. Reason: rubric review v11 (F4) flagged
+the discrepancy as a contributor-onboarding footgun — allowing Node 21 and 22 in
+engines while CI and arch:check only run Node 20 creates a false expectation that
+those versions are validated. Históricamente the cap was loose because Node 22 was
+expected to be validated by v0.1.10-mvp; that validation was deferred and the
+rubric residuals pass enforces consistency now.
