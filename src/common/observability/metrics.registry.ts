@@ -31,6 +31,8 @@ export interface DispatchMetrics {
   evaluateDurationMs: Histogram;
   confirmTotal: Counter;
   candidatesCount: Histogram;
+  // F7 metrics — analytics_persist_failures_total (REQ-3, v0.1.10-mvp)
+  analyticsPersistFailures: Counter<'event_name'>;
   // F3 metrics — DD-02 §14 contract (ADR-v7-03: additive, no renames)
   // DD-02 §14 mapping:
   //   dispatch.phase.candidature.duration_ms → dispatch_phase_candidature_duration_ms
@@ -141,6 +143,14 @@ export function createMetricsRegistry(): { registry: Registry; metrics: Dispatch
     registers: [registry],
   });
 
+  // F7 metric — analytics persist failure counter (REQ-3, v0.1.10-mvp)
+  const analyticsPersistFailures = new Counter({
+    name: 'analytics_persist_failures_total',
+    help: 'Analytics event persist failures (handler catch path)',
+    labelNames: ['event_name'],
+    registers: [registry],
+  });
+
   // F3 metrics — DD-02 §14 contract additions (ADR-v7-03)
   const phaseCandidatureDurationMs = new Histogram({
     name: 'dispatch_phase_candidature_duration_ms',
@@ -214,6 +224,8 @@ export function createMetricsRegistry(): { registry: Registry; metrics: Dispatch
       evaluateDurationMs,
       confirmTotal,
       candidatesCount,
+      // F7 metric
+      analyticsPersistFailures,
       // F3 metrics
       phaseCandidatureDurationMs,
       phaseFilterDurationMs,
