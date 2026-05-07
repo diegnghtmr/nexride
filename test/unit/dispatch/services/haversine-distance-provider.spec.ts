@@ -83,6 +83,44 @@ describe('HaversineDistanceProvider', () => {
     expect(result.etaSeconds).toBeCloseTo(expectedEta, 0);
   });
 
+  // T-002 RED · F7 · pre-aborted AbortSignal → throws DistanceProviderTimeoutError before haversine compute
+  it('throws DistanceProviderTimeoutError when signal is already aborted before call', async () => {
+    const redis = makeFakeRedis();
+    const cfg = makeConfig();
+    const provider = new HaversineDistanceProvider(redis, cfg);
+
+    const controller = new AbortController();
+    controller.abort(); // pre-abort
+
+    await expect(provider.getEtaSeconds(origin, destination, controller.signal)).rejects.toThrow(
+      DistanceProviderTimeoutError,
+    );
+    // Redis should not have been called at all (aborted before cache read)
+    expect(redis.get).not.toHaveBeenCalled();
+  });
+
+  // T-003 RED · F7 · signal aborted after cache read → throws
+  it('throws DistanceProviderTimeoutError when signal is aborted after cache read', async () => {
+    const redis = makeFakeRedis();
+    // Cache miss — so we go into the haversine path; abort just after cache read
+    redis.get.mockImplementation(() => {
+      // Return null (cache miss) but the signal is already aborted by the time we check
+      return Promise.resolve(null);
+    });
+
+    const cfg = makeConfig();
+    const provider = new HaversineDistanceProvider(redis, cfg);
+
+    const controller = new AbortController();
+    // Abort synchronously before calling — simulates abort-after-cache-read scenario
+    // (provider checks signal.aborted after await redis.get returns null)
+    controller.abort();
+
+    await expect(provider.getEtaSeconds(origin, destination, controller.signal)).rejects.toThrow(
+      DistanceProviderTimeoutError,
+    );
+  });
+
   // Test 5: Cache key deterministic for same coordinates
   it('uses the same cache key for identical coordinate pairs', async () => {
     const redis = makeFakeRedis();

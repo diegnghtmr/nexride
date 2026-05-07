@@ -208,6 +208,36 @@ describe('POST /rides/request (integration)', () => {
     eventEmitter.removeAllListeners(DispatchEventName.RequestCreated);
   });
 
+  // T-004 RED · F2 — when safepoint combo wins, response.original.scores.safety equals baseline (0.3) not safepoint score
+  it('original.scores.safety equals baseline (0.3) not safepoint score when safepoint combo wins', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/rides/request')
+      .set('x-test-rider-id', 'rider-05')
+      .set('x-test-rider-role', 'rider')
+      .send({ origin: ORIGIN, destination: DESTINATION })
+      .expect(201);
+
+    // When a safepoint combo wins (suggested is defined), original.scores must use the no-safepoint baseline
+    if (response.body.suggested) {
+      // The no-safepoint baseline safety is cfg.originalSafetyBaseline = 0.3
+      expect(response.body.original.scores.safety).toBeCloseTo(0.3, 2);
+      // And it must NOT equal the safepoint's safety score (0.85 for SP_NEAR_HIGH_ID)
+      expect(response.body.original.scores.safety).not.toBeCloseTo(SAFE_POINT_NEAR_HIGH_SAFETY.safetyScore, 2);
+    }
+  });
+
+  // T-005 RED · F9 — mid-Atlantic origin (lat:0.0001, lng:0.0001) → HTTP 422 + body.errorCode==='NO_AVAILABILITY'
+  it('422 when no vehicles in radius (mid-Atlantic origin)', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/rides/request')
+      .set('x-test-rider-id', 'rider-06')
+      .set('x-test-rider-role', 'rider')
+      .send({ origin: { lat: 0.0001, lng: 0.0001 }, destination: { lat: 0.001, lng: 0.001 } })
+      .expect(422);
+
+    expect(response.body.code).toBe('NO_AVAILABILITY');
+  });
+
   it('401 when x-test-rider-id header is missing', async () => {
     await request(app.getHttpServer())
       .post('/rides/request')

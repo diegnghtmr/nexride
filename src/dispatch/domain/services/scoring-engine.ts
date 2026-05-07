@@ -42,10 +42,13 @@ export class ScoringEngine {
     // proximity = max(0, 1 - eta / maxEtaSeconds)
     const proximity = Math.max(0, 1 - etaSeconds / this.cfg.maxEtaSeconds);
 
-    // energy = clamp01( autonomy / (requiredKm * (1 + minimumReservePct)) )
-    // minimumReservePct is stored as fraction (0.15), so factor = 1.15
+    // energy = clamp01( autonomy / ((tripDistanceKm + vehicleToPickupKm) * (1 + minimumReservePct)) )
+    // vehicleToPickupKm = distanceFromOriginM / 1000 (sourced from Redis GEOSEARCH WITHDIST; 0 when absent)
+    // This matches the CandidateFilter gate formula — filter and scorer are now coherent (REQ-FIX-V8-02).
+    const vehicleToPickupKm = vehicle.distanceFromOriginM / 1000;
+    const totalDistanceKm = tripDistanceKm + vehicleToPickupKm;
     const reserveFactor = 1 + this.cfg.fleet.minimumReservePct;
-    const energy = clamp01(vehicle.autonomyKm / (tripDistanceKm * reserveFactor));
+    const energy = clamp01(vehicle.autonomyKm / (totalDistanceKm * reserveFactor));
 
     // safety = safePoint.safetyScore.value OR originalSafetyBaseline
     const safety = safePoint ? safePoint.safetyScore.value : this.cfg.originalSafetyBaseline;

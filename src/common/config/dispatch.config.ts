@@ -109,7 +109,7 @@ export function loadDispatchConfig(env: NodeJS.ProcessEnv): DispatchConfig {
     distance: {
       cacheTtlSec: parseNumber(env, 'DISTANCE_CACHE_TTL_SEC', 60),
       providerTimeoutMs: parseNumber(env, 'DISTANCE_PROVIDER_TIMEOUT_MS', 800),
-      injectTimeout: false,
+      injectTimeout: env['DISTANCE_INJECT_TIMEOUT'] === 'true',
     },
   };
 }

@@ -4,8 +4,10 @@
 # =============================================================================
 #
 # PURPOSE
-#   Mirrors the full GitHub Actions CI suite so developers can catch failures
-#   locally before pushing. Run it before every PR push to avoid red CI.
+#   Mirrors the BLOCKING jobs of the GitHub Actions CI suite (excludes
+#   performance-smoke and build-openapi which require docker/k6 infra — see
+#   INTENTIONALLY EXCLUDED below) so developers can catch failures locally
+#   before pushing. Run it before every PR push to avoid red CI.
 #
 # USAGE
 #   npm run ci:local

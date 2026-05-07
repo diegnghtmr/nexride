@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 import { IDecisionRepository } from '../../../common/interfaces/IDecisionRepository';
 import { PreliminaryDecision } from '../../../common/interfaces/shared-types';
 import { DispatchDecisionEntity } from './dispatch-decision.entity';
@@ -32,7 +32,18 @@ export class DecisionRepository implements IDecisionRepository {
       userChoice: null,
       confirmedAt: null,
     });
-    await this.repo.save(entity);
+    try {
+      await this.repo.save(entity);
+    } catch (err) {
+      // REQ-FIX-V8-01 belt-and-suspenders: if the abort-signal guard in runPipeline slips
+      // and the late-arriving pipeline also attempts a savePreliminary, PG rejects the
+      // duplicate insert with 23505 unique_violation. We silently no-op here — the first
+      // write (fallback row) is the canonical record.
+      if (err instanceof QueryFailedError && (err as unknown as { code: string }).code === '23505') {
+        return;
+      }
+      throw err;
+    }
   }
 
   async updateConfirmed(requestId: string, tripId: string, userChoice: 'original' | 'suggested'): Promise<void> {
