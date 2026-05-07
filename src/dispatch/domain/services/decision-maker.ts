@@ -68,12 +68,12 @@ export class DecisionMaker {
       const suggestedSafety = bestSafeCombo.safety;
       const relativeImprovement = (suggestedSafety - originalSafety) / originalSafety;
 
-      // Suggestion iff improvement >= threshold AND walking < safePointRadiusM (exclusive upper bound)
+      // Suggestion iff improvement >= threshold AND walking <= safePointRadiusM (inclusive upper bound — matches ST_DWithin)
       // Use epsilon to handle floating-point boundary cases (e.g. 0.3 * 1.15 arithmetic)
       const EPSILON = 1e-9;
       if (
         relativeImprovement >= this.cfg.suggestionThresholdPct - EPSILON &&
-        bestSafeCombo.walkingMeters < this.cfg.safePointRadiusM
+        bestSafeCombo.walkingMeters <= this.cfg.safePointRadiusM
       ) {
         suggestion = {
           safePointId: bestSafeCombo.safePointId!,
