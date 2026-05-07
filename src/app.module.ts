@@ -1,9 +1,11 @@
 import { MiddlewareConsumer, Module, NestModule, ValidationPipe } from '@nestjs/common';
-import { APP_FILTER, APP_PIPE } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { LoggerModule } from 'nestjs-pino';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { ConfigurableThrottlerGuard } from './common/guards/configurable-throttler.guard';
 import { DomainExceptionFilter } from './common/filters/domain-exception.filter';
 import { RequestIdMiddleware } from './common/observability/request-id.middleware';
 import { buildPinoConfig } from './common/observability/pino.config';
@@ -40,6 +42,10 @@ import { RenameAnalyticsColumns17000000010006 } from './migrations/1700000001000
 
     // Observability — exposes GET /metrics with Prometheus registry (REQ-FIX-03)
     ObservabilityModule,
+
+    // Rate limiting — 100 req/min per IP globally (REQ-FIX-V8-08 / F10)
+    // Bypass via THROTTLER_DISABLED=1 for integration tests (see test/integration/setup.ts)
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
 
     // TypeORM — env-driven config; migrations registered (design §5)
     TypeOrmModule.forRootAsync({
@@ -86,6 +92,14 @@ import { RenameAnalyticsColumns17000000010006 } from './migrations/1700000001000
     {
       provide: APP_FILTER,
       useClass: DomainExceptionFilter,
+    },
+
+    // Global rate limiting guard (REQ-FIX-V8-08 / F10)
+    // ConfigurableThrottlerGuard extends ThrottlerGuard with THROTTLER_DISABLED bypass.
+    // Set THROTTLER_DISABLED=1 in integration test environments to skip rate limiting.
+    {
+      provide: APP_GUARD,
+      useClass: ConfigurableThrottlerGuard,
     },
 
     // Global validation pipe — whitelist/transform/forbidNonWhitelisted

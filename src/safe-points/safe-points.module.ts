@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
+import { getDataSourceToken } from '@nestjs/typeorm';
 import { SafePointsController } from './safe-points.controller';
 import { SafePointsService } from './safe-points.service';
 import { SafePointsRepository } from './infrastructure/safe-points.repository';
@@ -12,7 +14,11 @@ import { SAFE_POINTS_SERVICE } from '../common/interfaces/ISafePointsService';
   controllers: [SafePointsController],
   providers: [
     SafePointsRepository,
-    SafePointsService,
+    {
+      provide: SafePointsService,
+      useFactory: (repo: SafePointsRepository, dataSource: DataSource) => new SafePointsService(repo, dataSource),
+      inject: [SafePointsRepository, getDataSourceToken()],
+    },
     {
       provide: SAFE_POINTS_SERVICE,
       useExisting: SafePointsService,

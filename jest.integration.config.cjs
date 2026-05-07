@@ -21,4 +21,6 @@ module.exports = {
   testTimeout: 120000,
   globalSetup: undefined,
   globalTeardown: undefined,
+  // Sets THROTTLER_DISABLED=1 before any AppModule bootstrap — prevents 429 in test loops (F10)
+  setupFiles: ['<rootDir>/test/integration/setup.ts'],
 };
