@@ -79,11 +79,7 @@ describe('DispatchAnalyticsHandler — analytics_persist_failures_total (REQ-3, 
       setContext: jest.fn(),
     };
 
-    handler = new DispatchAnalyticsHandler(
-      analyticsRepo as never,
-      mockLogger as never,
-      metrics,
-    );
+    handler = new DispatchAnalyticsHandler(analyticsRepo as never, mockLogger as never, metrics);
   });
 
   describe('Scenario 3.1 — Counter increments on save failure', () => {
