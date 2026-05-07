@@ -50,7 +50,7 @@
 | TRD §7.4 | NFR-12..14 | Fuera de Alcance — Infra producción | — | — |
 | TRD §7.4 | NFR-15 | Implementado | `src/common/guards/rbac.guard.ts`, `src/safe-points/safe-points.controller.ts` | `test/integration/safe-points/safe-points.rbac.spec.ts` |
 | TRD §7.4 | NFR-16 | Implementado | `src/safe-points/infrastructure/safe-point-audit.entity.ts` | `test/integration/safe-points/safe-points.audit.spec.ts` |
-| TRD §7.4 | NFR-17 | Fuera de Alcance — rate limiting post-MVP | — | — |
+| TRD §7.4 | NFR-17 | Implementado — `src/app.module.ts:60-86` (ThrottlerModule two named throttlers: user 100/min, ip 1000/min), `src/common/guards/configurable-throttler.guard.ts:43-50` (getTracker override: user.id ?? ip) | `test/integration/rides/throttling.spec.ts` (3 scenarios: per-user 429, per-IP 429, unauth not-500) |
 | TRD §7.5 | NFR-18 | Implementado | `src/common/observability/pino.config.ts` | Logs JSON visibles en integration tests vía nestjs-pino |
 | TRD §7.5 | NFR-19 | Implementado | `src/common/observability/metrics.controller.ts`, `src/common/observability/metrics.registry.ts`, `src/common/observability/observability.module.ts` | `test/integration/observability/metrics-endpoint.spec.ts` |
 | TRD §7.5 | NFR-20 | Fuera de Alcance — pipeline alertas post-MVP | `src/common/observability/metrics.registry.ts` (métricas disponibles para scraping) | — |

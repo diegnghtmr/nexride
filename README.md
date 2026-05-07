@@ -18,7 +18,7 @@ Este repositorio contiene el **vertical slice backend completo**: evaluación de
 | Flota read-side (Redis) | Implementado | RTF-14..15 |
 | Trip mínimo (`requested → assigned`) | Parcial | RTF-26..28 |
 | Analítica de eventos del flujo | Implementado | RTF-31..32 |
-| Observabilidad — Rate limiting (NFR-17) | Fuera de Alcance | NFR-17 |
+| Observabilidad — Rate limiting (NFR-17) | Implementado | NFR-17 |
 | Observabilidad — Logs estructurados pino (NFR-18) | Implementado | NFR-18 |
 | Observabilidad — Métricas Prometheus prom-client (NFR-19) | Implementado | NFR-19 |
 | Observabilidad — Alertas configuradas (NFR-20) | Fuera de Alcance | NFR-20 |

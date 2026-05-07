@@ -21,7 +21,7 @@ El alcance recomendado es un **vertical slice backend** compuesto por **Dispatch
 | Fleet de soporte al despacho | Implementado parcial-alto valor | RTF-14 y RTF-15 completos; RTF-13 parcial mediante adaptador/fixtures y contrato |
 | Trip mínimo | Implementado parcial | RTF-28 completo; RTF-26 y RTF-27 parciales para el flujo `requested -> assigned` |
 | Analytics del flujo cubierto | Implementado completo en alcance | RTF-31 y RTF-32 para eventos del flujo implementado |
-| Seguridad, observabilidad y resiliencia en el backend del alcance | Implementado | NFR-01, NFR-09, NFR-10, NFR-17, NFR-18, NFR-19, NFR-20 y NFR-21 en lo aplicable al corte vertical |
+| Seguridad, observabilidad y resiliencia en el backend del alcance | Implementado | NFR-01, NFR-09, NFR-10, NFR-17 (implementado: rate limiting dos niveles — usuario 100/min, IP 1000/min — en `src/app.module.ts:60-86` + `src/common/guards/configurable-throttler.guard.ts` desde v0.1.9-mvp), NFR-18, NFR-19, NFR-20 y NFR-21 en lo aplicable al corte vertical |
 | Coherencia documental | Implementado | Trazabilidad explícita a PRD, RFC, TRD, DD-01 y DD-02 |
 
 La tabla anterior deriva directamente del hecho de que el TRD exige el motor de despacho contextual, SafePoints y el registro analítico de decisiones; que el DD-01 obliga a mantener las fronteras modulares; y que la guía permite omisiones siempre que queden declaradas y justificadas en el alcance. fileciteturn0file2 fileciteturn0file1 fileciteturn0file3
