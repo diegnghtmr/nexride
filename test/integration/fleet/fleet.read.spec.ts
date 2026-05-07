@@ -139,6 +139,12 @@ describe('Fleet Read (integration)', () => {
       expect(ids).toContain('VH-001');
       expect(ids).toContain('VH-002');
       expect(ids).not.toContain('VH-003');
+
+      // F11: location must carry real Redis-seeded coordinates (non-zero)
+      const vh001 = candidates.find((c) => c.id === 'VH-001');
+      expect(vh001).toBeDefined();
+      expect(vh001!.location.lat).not.toBe(0);
+      expect(vh001!.location.lng).not.toBe(0);
     });
 
     it('excludes vehicle that is outside the radius', async () => {
