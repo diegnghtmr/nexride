@@ -146,6 +146,13 @@ export const DECISION_RECORDER = Symbol('DecisionRecorder');
       ) => {
         const cfg = loadDispatchConfig(process.env);
         logger.setContext(EvaluateDispatchUseCase.name);
+
+        // F3: initialize scoring weights gauge at module startup (ADR-v7-03)
+        const weightsEntries = Object.entries(cfg.weights) as [string, number][];
+        for (const [name, value] of weightsEntries) {
+          metrics.scoringWeights.set({ weight: name }, value);
+        }
+
         return new EvaluateDispatchUseCase(
           candidateGenerator,
           candidateFilter,

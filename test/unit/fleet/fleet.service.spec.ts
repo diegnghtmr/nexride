@@ -50,7 +50,9 @@ describe('FleetService', () => {
 
   describe('findCandidatesInRadius()', () => {
     it('1. vehicle outside radius excluded — adapter returns empty, service returns empty', async () => {
-      adapter.getVehicleIdsInRadius.mockResolvedValue([]);
+      adapter.getVehicleIdsInRadius.mockResolvedValue(
+        [] as Array<{ id: string; distanceM: number; location: { lat: number; lng: number } }>,
+      );
 
       const result = await service.findCandidatesInRadius({ lat: 4.65, lng: -74.05 }, 5);
 
@@ -61,7 +63,9 @@ describe('FleetService', () => {
       const now = Date.now();
       jest.setSystemTime(now);
 
-      adapter.getVehicleIdsInRadius.mockResolvedValue([{ id: 'VH-001', distanceM: 200 }]);
+      adapter.getVehicleIdsInRadius.mockResolvedValue([
+        { id: 'VH-001', distanceM: 200, location: { lat: 4.651, lng: -74.051 } },
+      ]);
       adapter.getVehicleHash.mockResolvedValue({
         battery_pct: '80',
         eligible: '1',
@@ -75,13 +79,16 @@ describe('FleetService', () => {
       expect(result).toHaveLength(1);
       expect(result[0].eligible).toBe(true);
       expect(result[0].batteryLevelPct).toBe(80);
+      expect(result[0].location).toEqual({ lat: 4.651, lng: -74.051 });
     });
 
     it('3. eligible=0 vehicle is returned (filtering is a dispatch domain concern)', async () => {
       const now = Date.now();
       jest.setSystemTime(now);
 
-      adapter.getVehicleIdsInRadius.mockResolvedValue([{ id: 'VH-002', distanceM: 300 }]);
+      adapter.getVehicleIdsInRadius.mockResolvedValue([
+        { id: 'VH-002', distanceM: 300, location: { lat: 4.652, lng: -74.052 } },
+      ]);
       adapter.getVehicleHash.mockResolvedValue({
         battery_pct: '15',
         eligible: '0',

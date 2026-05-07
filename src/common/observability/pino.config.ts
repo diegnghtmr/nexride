@@ -37,7 +37,7 @@ export function buildPinoConfig(): Params {
       timestamp: () => `,"timestamp":"${new Date().toISOString()}"`,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       customProps: (req: any) => ({
-        module: req['module'] ?? 'unknown',
+        module: req['module'] ?? 'http',
         request_id: req['correlationId'] ?? null,
         trip_id: req['tripId'] ?? null,
         user_id: req['user']?.id ?? null,

@@ -42,6 +42,7 @@ export class CandidateGenerator {
                 ? 'out_of_service'
                 : 'busy',
           telemetryAt: new Date(v.lastTelemetryAt),
+          distanceFromOriginM: v.distanceFromOriginM ?? 0,
         }),
     );
 

@@ -147,6 +147,7 @@ export class ConfirmDispatchUseCase {
     // Emit suggestion accepted/rejected
     if (decision.suggestionStatus === 'shown' && decision.suggestedPointId) {
       if (input.choice === 'suggested') {
+        this.metrics?.suggestionAccepted.inc();
         this.eventEmitter.emit(DispatchEventName.SuggestionAccepted, {
           requestId: input.requestId,
           riderId: decision.riderId,
@@ -155,6 +156,7 @@ export class ConfirmDispatchUseCase {
           ts: new Date().toISOString(),
         });
       } else {
+        this.metrics?.suggestionRejected.inc();
         this.eventEmitter.emit(DispatchEventName.SuggestionRejected, {
           requestId: input.requestId,
           riderId: decision.riderId,

@@ -1,4 +1,4 @@
-import { Registry, Histogram, Counter } from 'prom-client';
+import { Registry, Histogram, Counter, Gauge } from 'prom-client';
 
 const PIPELINE_BUCKETS = [25, 50, 100, 200, 400, 800, 1200, 2000];
 
@@ -31,8 +31,31 @@ export interface DispatchMetrics {
   evaluateDurationMs: Histogram;
   confirmTotal: Counter;
   candidatesCount: Histogram;
+  // F3 metrics — DD-02 §14 contract (ADR-v7-03: additive, no renames)
+  // DD-02 §14 mapping:
+  //   dispatch.phase.candidature.duration_ms → dispatch_phase_candidature_duration_ms
+  //   dispatch.phase.filter.duration_ms      → dispatch_phase_filter_duration_ms
+  //   dispatch.phase.scoring.duration_ms     → dispatch_phase_scoring_duration_ms
+  //   dispatch.suggestion.generated          → dispatch_suggestion_generated
+  //   dispatch.suggestion.accepted           → dispatch_suggestion_accepted
+  //   dispatch.suggestion.rejected           → dispatch_suggestion_rejected
+  //   dispatch.fallback.activated            → dispatch_fallback_activated  (extra label-free; dispatch_fallback_total{reason} kept for overlap)
+  //   dispatch.no_availability               → dispatch_no_availability
+  //   dispatch.scoring_weights               → dispatch_scoring_weights{weight}
+  phaseCandidatureDurationMs: Histogram;
+  phaseFilterDurationMs: Histogram;
+  phaseScoringDurationMs: Histogram;
+  suggestionGenerated: Counter;
+  suggestionAccepted: Counter;
+  suggestionRejected: Counter;
+  fallbackActivated: Counter;
+  noAvailability: Counter;
+  scoringWeights: Gauge;
 }
 
+// ADR-v7-03: F3 metric additions are ADDITIVE — existing metric names are NOT renamed.
+// DD-02 §14 compliance is achieved by adding new metrics alongside the existing ones.
+// This preserves backward compatibility for existing integration tests.
 export function createMetricsRegistry(): { registry: Registry; metrics: DispatchMetrics } {
   const registry = new Registry();
 
@@ -118,6 +141,65 @@ export function createMetricsRegistry(): { registry: Registry; metrics: Dispatch
     registers: [registry],
   });
 
+  // F3 metrics — DD-02 §14 contract additions (ADR-v7-03)
+  const phaseCandidatureDurationMs = new Histogram({
+    name: 'dispatch_phase_candidature_duration_ms',
+    help: 'Candidature phase duration in milliseconds',
+    buckets: PIPELINE_BUCKETS,
+    registers: [registry],
+  });
+
+  const phaseFilterDurationMs = new Histogram({
+    name: 'dispatch_phase_filter_duration_ms',
+    help: 'Filter phase duration in milliseconds',
+    buckets: PIPELINE_BUCKETS,
+    registers: [registry],
+  });
+
+  const phaseScoringDurationMs = new Histogram({
+    name: 'dispatch_phase_scoring_duration_ms',
+    help: 'Scoring phase duration in milliseconds',
+    buckets: PIPELINE_BUCKETS,
+    registers: [registry],
+  });
+
+  const suggestionGenerated = new Counter({
+    name: 'dispatch_suggestion_generated',
+    help: 'Number of dispatch suggestions generated',
+    registers: [registry],
+  });
+
+  const suggestionAccepted = new Counter({
+    name: 'dispatch_suggestion_accepted',
+    help: 'Number of dispatch suggestions accepted by rider',
+    registers: [registry],
+  });
+
+  const suggestionRejected = new Counter({
+    name: 'dispatch_suggestion_rejected',
+    help: 'Number of dispatch suggestions rejected by rider',
+    registers: [registry],
+  });
+
+  const fallbackActivated = new Counter({
+    name: 'dispatch_fallback_activated',
+    help: 'Number of dispatch fallback activations (label-free; dispatch_fallback_total{reason} maintained for overlap)',
+    registers: [registry],
+  });
+
+  const noAvailability = new Counter({
+    name: 'dispatch_no_availability',
+    help: 'Number of dispatch requests with no viable vehicles',
+    registers: [registry],
+  });
+
+  const scoringWeights = new Gauge({
+    name: 'dispatch_scoring_weights',
+    help: 'Dispatch scoring weight values by weight name',
+    labelNames: ['weight'],
+    registers: [registry],
+  });
+
   return {
     registry,
     metrics: {
@@ -132,6 +214,16 @@ export function createMetricsRegistry(): { registry: Registry; metrics: Dispatch
       evaluateDurationMs,
       confirmTotal,
       candidatesCount,
+      // F3 metrics
+      phaseCandidatureDurationMs,
+      phaseFilterDurationMs,
+      phaseScoringDurationMs,
+      suggestionGenerated,
+      suggestionAccepted,
+      suggestionRejected,
+      fallbackActivated,
+      noAvailability,
+      scoringWeights,
     },
   };
 }

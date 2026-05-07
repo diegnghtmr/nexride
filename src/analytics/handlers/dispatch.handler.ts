@@ -13,6 +13,7 @@ import {
   FallbackActivatedPayload,
   CompletedPayload,
   TripAssignedPayload,
+  NoAvailabilityPayload,
 } from '../../common/events/event-payloads';
 
 @Injectable()
@@ -99,6 +100,14 @@ export class DispatchAnalyticsHandler {
       payload.riderId,
       payload as unknown as Record<string, unknown>,
     );
+  }
+
+  @OnEvent(DispatchEventName.NoAvailability, { async: true })
+  async onNoAvailability(payload: NoAvailabilityPayload): Promise<void> {
+    await this.persist(DispatchEventName.NoAvailability, payload.requestId, undefined, payload.riderId, {
+      reason: payload.reason,
+      ts: payload.ts,
+    } as unknown as Record<string, unknown>);
   }
 
   private async persist(
