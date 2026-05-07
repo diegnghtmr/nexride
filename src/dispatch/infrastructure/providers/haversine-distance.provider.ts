@@ -2,6 +2,7 @@ import { IDistanceProvider, DistanceResult } from '../../../common/interfaces/ID
 import { DispatchConfig } from '../../../common/config/dispatch.config';
 import { GeoPoint } from '../../domain/value-objects/geo-point.vo';
 import { DistanceProviderTimeoutError } from '../../../common/errors/domain-error';
+import { DispatchMetrics } from '../../../common/observability/metrics.registry';
 
 /** Minimal Redis client interface — avoids a hard dependency on ioredis types in tests */
 export interface RedisClientLike {
@@ -25,16 +26,22 @@ export class HaversineDistanceProvider implements IDistanceProvider {
   constructor(
     private readonly redis: RedisClientLike,
     private readonly cfg: DispatchConfig,
+    // F6 REQ-FIX-V8-06: optional metrics — keeps existing tests green (no metrics needed in unit tests)
+    private readonly metrics?: DispatchMetrics,
   ) {}
 
   async getEtaSeconds(from: GeoPoint, to: GeoPoint, signal?: AbortSignal): Promise<DistanceResult> {
     // REQ-FIX-V8-05: Honor AbortSignal — check before any work
     if (signal?.aborted) {
+      // F6 REQ-FIX-V8-06: count timeout/abort result
+      this.metrics?.distanceProviderCalls.inc({ result: 'timeout' });
       throw new DistanceProviderTimeoutError('Distance provider aborted before start', { from, to });
     }
 
     // Fault injection for testing and perf scenarios
     if (this.cfg.distance.injectTimeout) {
+      // F6 REQ-FIX-V8-06: count injected timeout result
+      this.metrics?.distanceProviderCalls.inc({ result: 'timeout' });
       throw new DistanceProviderTimeoutError('Distance provider timeout injected', { from, to });
     }
 
@@ -45,10 +52,14 @@ export class HaversineDistanceProvider implements IDistanceProvider {
 
     // REQ-FIX-V8-05: Check abort after async cache read — the signal may have fired while we awaited
     if (signal?.aborted) {
+      // F6 REQ-FIX-V8-06: count timeout/abort result
+      this.metrics?.distanceProviderCalls.inc({ result: 'timeout' });
       throw new DistanceProviderTimeoutError('Distance provider aborted after cache read', { from, to });
     }
 
     if (cached !== null) {
+      // F6 REQ-FIX-V8-06: count cache hit result
+      this.metrics?.distanceProviderCalls.inc({ result: 'cache_hit' });
       const parsed = JSON.parse(cached) as { etaSeconds: number; distanceM: number };
       return { ...parsed, source: 'cache' };
     }
@@ -66,6 +77,9 @@ export class HaversineDistanceProvider implements IDistanceProvider {
 
     // Write to cache with TTL
     await this.redis.setEx(cacheKey, this.cfg.distance.cacheTtlSec, JSON.stringify({ etaSeconds, distanceM }));
+
+    // F6 REQ-FIX-V8-06: count computed result
+    this.metrics?.distanceProviderCalls.inc({ result: 'computed' });
 
     return result;
   }

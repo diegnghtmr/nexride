@@ -51,13 +51,15 @@ export const DECISION_RECORDER = Symbol('DecisionRecorder');
     DecisionRepository,
     {
       provide: DISTANCE_PROVIDER,
-      useFactory: () => {
+      inject: [DISPATCH_METRICS],
+      useFactory: (metrics: DispatchMetrics) => {
         const cfg = loadDispatchConfig(process.env);
         const stubRedis = {
           get: async () => null,
           setEx: async () => 'OK',
         };
-        return new HaversineDistanceProvider(stubRedis, cfg);
+        // F6 REQ-FIX-V8-06: inject metrics so distanceProviderCalls counter is wired
+        return new HaversineDistanceProvider(stubRedis, cfg, metrics);
       },
     },
     {
