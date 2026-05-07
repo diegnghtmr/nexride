@@ -201,11 +201,13 @@ describe('GET /metrics (integration)', () => {
       const metricsRes = await request(app.getHttpServer()).get('/metrics').expect(200);
       const text = metricsRes.text;
 
-      // dispatch_pipeline_duration_ms — wired in execute() at success and fallback paths
-      expect(getCounterValue(text, 'dispatch_pipeline_duration_ms_count')).toBeGreaterThan(0);
+      // dispatch_pipeline_duration_ms{outcome} — wired in execute() at success/fallback paths
+      // prom-client emits _count with labels when labelNames is set, so we must pass the label
+      expect(getCounterValue(text, 'dispatch_pipeline_duration_ms_count', { outcome: 'success' })).toBeGreaterThan(0);
 
       // dispatch_phase_duration_ms{phase} — wired in runPipeline alongside per-phase histograms
-      expect(getCounterValue(text, 'dispatch_phase_duration_ms_count')).toBeGreaterThan(0);
+      // prom-client emits _count with labels when labelNames is set, so we must pass the label
+      expect(getCounterValue(text, 'dispatch_phase_duration_ms_count', { phase: 'candidature' })).toBeGreaterThan(0);
 
       // dispatch_candidates_initial{zone} — wired after candidateGenerator.generate()
       expect(getCounterValue(text, 'dispatch_candidates_initial_count')).toBeGreaterThan(0);
