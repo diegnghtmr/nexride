@@ -41,7 +41,9 @@ describe('Architecture — Dispatch Isolation Rules', () => {
     const nodeMajor = parseInt(process.version.slice(1).split('.')[0], 10);
     if (nodeMajor >= 22) {
       console.warn(
-        `Skipping arch:check on Node ${process.version} (Node >=22 requires Node 20 for depcruise). CI enforces this via Node 20.`,
+        `Skipping arch:check on Node ${process.version}. depcruise requires Node ≤21. ` +
+          `Run \`nvm use 20 && npm run arch:check\` for local repro, ` +
+          `or use \`npm run arch:check:docker\`. See docs/adr/ADR-009-arch-check-node-compat.md.`,
       );
       return;
     }
@@ -56,7 +58,11 @@ describe('Architecture — Dispatch Isolation Rules', () => {
   it('depcruise detects a deliberate forbidden import (self-test)', () => {
     const nodeMajor = parseInt(process.version.slice(1).split('.')[0], 10);
     if (nodeMajor >= 22) {
-      console.warn('Skipping deliberate-failure subtest on Node >= 22.');
+      console.warn(
+        `Skipping arch:check on Node ${process.version}. depcruise requires Node ≤21. ` +
+          `Run \`nvm use 20 && npm run arch:check\` for local repro, ` +
+          `or use \`npm run arch:check:docker\`. See docs/adr/ADR-009-arch-check-node-compat.md.`,
+      );
       return;
     }
 
