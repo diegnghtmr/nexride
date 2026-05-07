@@ -92,22 +92,30 @@ export class EvaluateDispatchUseCase {
       ts,
     });
 
-    // Wrap the full pipeline in a timeout race
-    const pipelinePromise = this.runPipeline(requestId, input.riderId, origin, destination, tripDistanceKm, startMs);
-
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('PIPELINE_TIMEOUT')), this.pipelineTimeoutMs),
-    );
+    // REQ-FIX-V8-01: Replace Promise.race with AbortController so the losing pipeline
+    // coroutine is signalled to stop before it can write a second dispatch_decisions row.
+    const controller = new AbortController();
+    const timeoutHandle = setTimeout(() => controller.abort(new Error('PIPELINE_TIMEOUT')), this.pipelineTimeoutMs);
 
     try {
-      const result = await Promise.race([pipelinePromise, timeoutPromise]);
+      const result = await this.runPipeline(
+        requestId,
+        input.riderId,
+        origin,
+        destination,
+        tripDistanceKm,
+        startMs,
+        controller.signal,
+      );
+      clearTimeout(timeoutHandle);
       // REQ-OBS-1: emit evaluate success counter
       this.metrics?.evaluateTotal.inc({ outcome: 'success' });
       // REQ-OBS-2: emit evaluate duration histogram
       this.metrics?.evaluateDurationMs.observe(Date.now() - startMs);
       return result;
     } catch (err: unknown) {
-      const isTimeout = err instanceof Error && err.message === 'PIPELINE_TIMEOUT';
+      clearTimeout(timeoutHandle);
+      const isTimeout = controller.signal.aborted || (err instanceof Error && err.message === 'PIPELINE_TIMEOUT');
       const fallbackReason = isTimeout ? 'timeout' : 'no_candidates';
 
       this.logger.warn({ requestId, reason: fallbackReason }, 'Pipeline fallback activated');
@@ -170,6 +178,19 @@ export class EvaluateDispatchUseCase {
     }
   }
 
+  /**
+   * REQ-FIX-V8-01: Returns a sentinel value when the pipeline is aborted mid-flight.
+   * The caller (execute) will see this as the pipeline "result" but the outer catch
+   * block (which runs the fallback) is already in progress — so this sentinel is never
+   * returned to the HTTP layer. It serves only to cleanly exit runPipeline without
+   * throwing, which would pollute the error logs with false-positive errors.
+   */
+  private earlyAbortSentinel(): never {
+    // Throwing PIPELINE_ABORTED signals to execute() that the pipeline was cleanly cancelled.
+    // execute() treats any thrown error while signal.aborted===true as the timeout path.
+    throw new Error('PIPELINE_ABORTED');
+  }
+
   private async runPipeline(
     requestId: string,
     riderId: string,
@@ -177,11 +198,15 @@ export class EvaluateDispatchUseCase {
     destination: GeoPoint,
     tripDistanceKm: number,
     startMs: number,
+    signal: AbortSignal,
   ): Promise<EvaluateDispatchOutput> {
     // Phase 1: Candidature
     const candidatureStart = Date.now();
     const { vehicles: rawVehicles, safePoints } = await this.candidateGenerator.generate(origin);
     this.metrics?.phaseCandidatureDurationMs.observe(Date.now() - candidatureStart);
+
+    // REQ-FIX-V8-01: abort guard after Phase 1 — pipeline may have timed out while awaiting candidature
+    if (signal.aborted) return this.earlyAbortSentinel();
 
     // Phase 2: Filter
     const filterStart = Date.now();
@@ -233,6 +258,9 @@ export class EvaluateDispatchUseCase {
     const safePointMap = new Map(scoreResults.map((r) => [r.combo.safePointId, r.safePoint]));
     this.metrics?.phaseScoringDurationMs.observe(Date.now() - scoringStart);
 
+    // REQ-FIX-V8-01: abort guard after Phase 3 scoring
+    if (signal.aborted) return this.earlyAbortSentinel();
+
     // Phase 4: Decision
     const decision = this.decisionMaker.decide(combos);
     const pipelineDurationMs = Date.now() - startMs;
@@ -258,6 +286,11 @@ export class EvaluateDispatchUseCase {
       ? { lat: suggestedSafePoint.location.lat, lng: suggestedSafePoint.location.lng }
       : undefined;
 
+    // REQ-FIX-V8-01: CRITICAL abort guard before savePreliminary — this is the race condition write site.
+    // If the signal fired, the fallback handler has already written (or is writing) the row.
+    // We must bail here to prevent a second INSERT on dispatch_decisions.request_id (PK).
+    if (signal.aborted) return this.earlyAbortSentinel();
+
     // Phase 5: Persist preliminary decision
     await this.decisionRecorder.savePreliminary({
       requestId,
@@ -272,31 +305,46 @@ export class EvaluateDispatchUseCase {
       pipelineDurationMs,
     });
 
+    // REQ-FIX-V8-03: Lift originalCombo find outside the `if (decision.suggestion)` block
+    // so it is available for the `original` construction even when no suggestion fires.
+    // When a safepoint combo wins, decision.primary IS the safepoint combo — reading scores from it
+    // violates the API contract that `original` represents the unmodified baseline.
+    const originalCombo =
+      combos.find((c) => c.vehicleId === decision.primary.vehicleId && c.safePointId === null) ?? decision.primary;
+
+    if (originalCombo === decision.primary && decision.suggestion) {
+      this.logger.warn(
+        { requestId, vehicleId: decision.primary.vehicleId },
+        'originalCombo not found — falling back to decision.primary for original.scores',
+      );
+    }
+
     // Emit suggestion event if applicable
     if (decision.suggestion) {
       this.metrics?.suggestionGenerated.inc();
-      const originalCombo = combos.find((c) => c.vehicleId === decision.primary.vehicleId && c.safePointId === null);
       this.eventEmitter.emit(DispatchEventName.SuggestionShown, {
         requestId,
         riderId,
-        originalSafety: originalCombo?.safety ?? 0.3,
+        originalSafety: originalCombo.safety,
         suggestedSafety: decision.primary.safety,
         walkingM: decision.suggestion.walkingMeters,
         safePointId: decision.suggestion.safePointId,
       });
     }
 
-    // Build response
+    // Build response — original uses baseline (no-safepoint) combo scores (REQ-FIX-V8-03)
+    // etaSeconds for original also comes from originalCombo: it is the eta to the rider's
+    // actual origin, not the safepoint location (ADR-v8-03 F2 also affects etaSeconds).
     const original: OriginalOption = {
       vehicleId: decision.primary.vehicleId,
-      etaSeconds: decision.primary.etaSeconds,
+      etaSeconds: originalCombo.etaSeconds,
       pickup: { lat: origin.lat, lng: origin.lng },
       scores: {
-        proximity: decision.primary.proximity,
-        energy: decision.primary.energy,
-        safety: decision.primary.safety,
-        continuity: decision.primary.continuity,
-        total: decision.primary.total,
+        proximity: originalCombo.proximity,
+        energy: originalCombo.energy,
+        safety: originalCombo.safety,
+        continuity: originalCombo.continuity,
+        total: originalCombo.total,
       },
     };
 

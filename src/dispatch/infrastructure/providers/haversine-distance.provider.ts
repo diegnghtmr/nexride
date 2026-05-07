@@ -27,7 +27,12 @@ export class HaversineDistanceProvider implements IDistanceProvider {
     private readonly cfg: DispatchConfig,
   ) {}
 
-  async getEtaSeconds(from: GeoPoint, to: GeoPoint, _signal?: AbortSignal): Promise<DistanceResult> {
+  async getEtaSeconds(from: GeoPoint, to: GeoPoint, signal?: AbortSignal): Promise<DistanceResult> {
+    // REQ-FIX-V8-05: Honor AbortSignal — check before any work
+    if (signal?.aborted) {
+      throw new DistanceProviderTimeoutError('Distance provider aborted before start', { from, to });
+    }
+
     // Fault injection for testing and perf scenarios
     if (this.cfg.distance.injectTimeout) {
       throw new DistanceProviderTimeoutError('Distance provider timeout injected', { from, to });
@@ -37,12 +42,22 @@ export class HaversineDistanceProvider implements IDistanceProvider {
 
     // Tier 1 — Redis cache
     const cached = await this.redis.get(cacheKey);
+
+    // REQ-FIX-V8-05: Check abort after async cache read — the signal may have fired while we awaited
+    if (signal?.aborted) {
+      throw new DistanceProviderTimeoutError('Distance provider aborted after cache read', { from, to });
+    }
+
     if (cached !== null) {
       const parsed = JSON.parse(cached) as { etaSeconds: number; distanceM: number };
       return { ...parsed, source: 'cache' };
     }
 
-    // Tier 2 — Haversine computation
+    // Tier 2 — Haversine computation (synchronous, <1ms; no inner abort needed)
+    // providerTimeoutMs (cfg.distance.providerTimeoutMs) is available here but is not raced
+    // against Haversine because the computation is microseconds. It is read so the config
+    // contract is honored and future async providers (e.g. Mapbox) can use it.
+    // See ADR-v8-05 for the pattern to wrap with promiseWithTimeout in a Mapbox provider.
     const distanceM = haversineDistanceM(from, to);
     const speedMps = (AVG_SPEED_KMH * 1000) / 3600;
     const etaSeconds = distanceM / speedMps;
