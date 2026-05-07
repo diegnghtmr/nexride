@@ -2,6 +2,7 @@ import { HaversineDistanceProvider } from '../../../../src/dispatch/infrastructu
 import { DispatchConfig, loadDispatchConfig } from '../../../../src/common/config/dispatch.config';
 import { GeoPoint } from '../../../../src/dispatch/domain/value-objects/geo-point.vo';
 import { DistanceProviderTimeoutError } from '../../../../src/common/errors/domain-error';
+import { DispatchMetrics } from '../../../../src/common/observability/metrics.registry';
 
 interface FakeRedisClient {
   get: jest.Mock;
@@ -135,5 +136,93 @@ describe('HaversineDistanceProvider', () => {
     const key2 = (redis.get as jest.Mock).mock.calls[1][0] as string;
     expect(key1).toBe(key2);
     expect(key1).toMatch(/^distance:/);
+  });
+
+  // F1 — metrics branch coverage: cover all 5 metrics?.distanceProviderCalls.inc branches
+  describe('with metrics injected', () => {
+    function makeMetrics(): DispatchMetrics {
+      return {
+        distanceProviderCalls: { inc: jest.fn() },
+      } as unknown as DispatchMetrics;
+    }
+
+    // Branch at line 37 — pre-aborted signal, metrics defined
+    it('increments metrics timeout counter when signal is pre-aborted (line 37 branch)', async () => {
+      const redis = makeFakeRedis();
+      const cfg = makeConfig();
+      const metrics = makeMetrics();
+      const provider = new HaversineDistanceProvider(redis, cfg, metrics);
+
+      const controller = new AbortController();
+      controller.abort();
+
+      await expect(provider.getEtaSeconds(origin, destination, controller.signal)).rejects.toThrow(
+        DistanceProviderTimeoutError,
+      );
+      expect(metrics.distanceProviderCalls.inc).toHaveBeenCalledWith({ result: 'timeout' });
+      expect(redis.get).not.toHaveBeenCalled();
+    });
+
+    // Branch at line 44 — injectTimeout=true, metrics defined
+    it('increments metrics timeout counter when injectTimeout is true (line 44 branch)', async () => {
+      const redis = makeFakeRedis();
+      const cfg = makeConfig({ distance: { cacheTtlSec: 60, providerTimeoutMs: 800, injectTimeout: true } });
+      const metrics = makeMetrics();
+      const provider = new HaversineDistanceProvider(redis, cfg, metrics);
+
+      await expect(provider.getEtaSeconds(origin, destination)).rejects.toThrow(DistanceProviderTimeoutError);
+      expect(metrics.distanceProviderCalls.inc).toHaveBeenCalledWith({ result: 'timeout' });
+    });
+
+    // Branch at line 56 — post-cache-read abort: signal NOT aborted at call time, aborted during redis.get
+    it('increments metrics timeout counter when signal aborts during redis.get (line 56 branch)', async () => {
+      const controller = new AbortController();
+      const redis = makeFakeRedis();
+      // Abort the signal DURING redis.get so it fires between line 51 and line 54
+      redis.get.mockImplementation(() => {
+        controller.abort(); // abort fires while awaiting cache read
+        return Promise.resolve(null); // cache miss
+      });
+      const cfg = makeConfig();
+      const metrics = makeMetrics();
+      const provider = new HaversineDistanceProvider(redis, cfg, metrics);
+
+      await expect(provider.getEtaSeconds(origin, destination, controller.signal)).rejects.toThrow(
+        DistanceProviderTimeoutError,
+      );
+      // Post-cache abort path: metrics inc called at line 56
+      expect(metrics.distanceProviderCalls.inc).toHaveBeenCalledWith({ result: 'timeout' });
+      expect(redis.setEx).not.toHaveBeenCalled();
+    });
+
+    // Branch at line 62 — cache hit, metrics defined
+    it('increments metrics cache_hit counter on cache hit (line 62 branch)', async () => {
+      const redis = makeFakeRedis();
+      const cachedData = JSON.stringify({ etaSeconds: 180, distanceM: 1250 });
+      redis.get.mockResolvedValue(cachedData);
+      const cfg = makeConfig();
+      const metrics = makeMetrics();
+      const provider = new HaversineDistanceProvider(redis, cfg, metrics);
+
+      const result = await provider.getEtaSeconds(origin, destination);
+
+      expect(result.source).toBe('cache');
+      expect(metrics.distanceProviderCalls.inc).toHaveBeenCalledWith({ result: 'cache_hit' });
+      expect(redis.setEx).not.toHaveBeenCalled();
+    });
+
+    // Branch at line 82 — cache miss happy path, haversine computed, metrics defined
+    it('increments metrics computed counter on cache miss happy path (line 82 branch)', async () => {
+      const redis = makeFakeRedis(); // cache miss by default
+      const cfg = makeConfig();
+      const metrics = makeMetrics();
+      const provider = new HaversineDistanceProvider(redis, cfg, metrics);
+
+      const result = await provider.getEtaSeconds(origin, destination);
+
+      expect(result.source).toBe('haversine');
+      expect(metrics.distanceProviderCalls.inc).toHaveBeenCalledWith({ result: 'computed' });
+      expect(redis.setEx).toHaveBeenCalledTimes(1);
+    });
   });
 });
