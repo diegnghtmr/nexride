@@ -226,7 +226,7 @@ describe('SafePoints CRUD (integration)', () => {
       await request(app.getHttpServer())
         .patch(`/safe-points/${id}`)
         .set(supervisorHeaders)
-        .send({ name: 'Punto Actualizado', reason: 'Correccion de nombre' })
+        .send({ name: 'Punto Actualizado', auditReason: 'Correccion de nombre' })
         .expect(200);
 
       // Verify via DB that name was updated
