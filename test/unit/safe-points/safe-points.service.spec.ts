@@ -120,10 +120,10 @@ describe('SafePointsService', () => {
   });
 
   describe('update()', () => {
-    it('7. update with missing reason throws SafePointReasonRequiredError', async () => {
+    it('7. update with missing auditReason throws SafePointReasonRequiredError', async () => {
       await expect(
         service.update('sp-uuid-001', {
-          reason: '',
+          auditReason: '',
           updatedBy: 'user-1',
         }),
       ).rejects.toBeInstanceOf(SafePointReasonRequiredError);
@@ -139,7 +139,7 @@ describe('SafePointsService', () => {
 
       const result = await service.update('sp-uuid-001', {
         name: 'Parque Sur',
-        reason: 'Cambio de nombre',
+        auditReason: 'Cambio de nombre',
         updatedBy: 'user-2',
       });
 
@@ -232,7 +232,7 @@ describe('SafePointsService', () => {
       repo.findById.mockResolvedValue(null);
 
       await expect(
-        service.update('nonexistent', { reason: 'valid reason', updatedBy: 'user-1' }),
+        service.update('nonexistent', { auditReason: 'valid reason', updatedBy: 'user-1' }),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
@@ -242,7 +242,7 @@ describe('SafePointsService', () => {
       repo.update.mockResolvedValue(null);
 
       await expect(
-        service.update('sp-uuid-001', { reason: 'valid reason', updatedBy: 'user-1' }),
+        service.update('sp-uuid-001', { auditReason: 'valid reason', updatedBy: 'user-1' }),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
   });

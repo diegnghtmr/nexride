@@ -58,10 +58,12 @@ export class SafePointsService implements ISafePointsService {
   }
 
   async update(id: string, input: UpdateSafePointInput): Promise<SafePoint> {
-    if (!input.reason || input.reason.trim().length === 0) {
-      throw new SafePointReasonRequiredError('reason is required when updating a safe point', { field: 'reason' });
+    if (!input.auditReason || input.auditReason.trim().length === 0) {
+      throw new SafePointReasonRequiredError('auditReason is required when updating a safe point', {
+        field: 'auditReason',
+      });
     }
-    const reason = input.reason;
+    const auditReason = input.auditReason;
 
     const existing = await this.repo.findById(id);
     if (!existing) {
@@ -78,7 +80,7 @@ export class SafePointsService implements ISafePointsService {
         {
           safePointId: id,
           action: 'UPDATE',
-          reason,
+          reason: auditReason,
           changedBy: input.updatedBy,
           snapshot: { before: existing, after: updated },
         },
@@ -104,7 +106,9 @@ export class SafePointsService implements ISafePointsService {
         id,
         {
           status: 'inactive',
-          reason,
+          // auditReason is the reason for this deactivation mutation (audit log)
+          // We do NOT overwrite the catalog reason during deactivation
+          auditReason: reason,
           updatedBy: actorId,
         },
         manager,

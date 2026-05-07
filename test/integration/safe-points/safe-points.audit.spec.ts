@@ -153,7 +153,7 @@ describe('SafePoints Audit Trail (integration)', () => {
     await request(app.getHttpServer())
       .patch(`/safe-points/${id}`)
       .set(supervisorHeaders)
-      .send({ safetyScore: 0.9, reason: 'Mejora de puntuacion' })
+      .send({ safetyScore: 0.9, auditReason: 'Mejora de puntuacion' })
       .expect(200);
 
     const rows = await dataSource.query<{ action: string; reason: string }[]>(

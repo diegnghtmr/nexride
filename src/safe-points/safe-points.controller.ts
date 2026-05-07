@@ -67,9 +67,9 @@ export class SafePointsController {
 
   @Patch(':id')
   @RequiredRoles('supervisor', 'administrador')
-  @ApiOperation({ summary: 'Update a safe point (requires reason for audit)' })
+  @ApiOperation({ summary: 'Update a safe point (requires auditReason for audit trail)' })
   @ApiResponse({ status: 200, description: 'Safe point updated' })
-  @ApiResponse({ status: 400, description: 'Missing reason field' })
+  @ApiResponse({ status: 400, description: 'Missing auditReason or invalid input' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async update(
     @Param('id') id: string,
@@ -83,7 +83,8 @@ export class SafePointsController {
       safetyScore: dto.safetyScore,
       status: dto.status,
       location: dto.location,
-      reason: dto.reason,
+      reason: dto.reason, // catalog reason (optional)
+      auditReason: dto.auditReason, // audit reason (mandatory)
       updatedBy: actorId,
     });
   }
