@@ -16,6 +16,7 @@ const makeVehicle = (
     eligibility: 'eligible' | 'not_eligible';
     state: 'available' | 'busy' | 'out_of_service';
     telemetryAt: Date;
+    distanceFromOriginM: number;
   }>,
 ): VehicleCandidate =>
   new VehicleCandidate({
@@ -26,6 +27,7 @@ const makeVehicle = (
     eligibility: overrides.eligibility ?? 'eligible',
     state: overrides.state ?? 'available',
     telemetryAt: overrides.telemetryAt ?? NOW,
+    distanceFromOriginM: overrides.distanceFromOriginM ?? 0,
   });
 
 describe('CandidateFilter', () => {

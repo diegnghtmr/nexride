@@ -45,8 +45,9 @@ export class CandidateFilter {
       return 'not_eligible';
     }
 
-    // Rule 3: battery autonomy (must cover requiredKm × (1 + reservePct))
-    const threshold = requiredKm * (1 + this.cfg.fleet.minimumReservePct);
+    // Rule 3: battery autonomy (must cover (tripKm + vehicleToPickupKm) × (1 + reservePct))
+    const vehicleToPickupKm = vehicle.distanceFromOriginM / 1000;
+    const threshold = (requiredKm + vehicleToPickupKm) * (1 + this.cfg.fleet.minimumReservePct);
     if (vehicle.autonomyKm < threshold) {
       return 'insufficient_battery';
     }
