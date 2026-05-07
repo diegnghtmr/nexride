@@ -210,10 +210,12 @@ describe('GET /metrics (integration)', () => {
       expect(getCounterValue(text, 'dispatch_phase_duration_ms_count', { phase: 'candidature' })).toBeGreaterThan(0);
 
       // dispatch_candidates_initial{zone} — wired after candidateGenerator.generate()
-      expect(getCounterValue(text, 'dispatch_candidates_initial_count')).toBeGreaterThan(0);
+      // prom-client emits _count with labels when labelNames is set, so we must pass the label
+      expect(getCounterValue(text, 'dispatch_candidates_initial_count', { zone: 'default' })).toBeGreaterThan(0);
 
       // dispatch_candidates_after_filter{zone} — wired after filter()
-      expect(getCounterValue(text, 'dispatch_candidates_after_filter_count')).toBeGreaterThan(0);
+      // prom-client emits _count with labels when labelNames is set, so we must pass the label
+      expect(getCounterValue(text, 'dispatch_candidates_after_filter_count', { zone: 'default' })).toBeGreaterThan(0);
 
       // dispatch_suggestion_total{outcome} — wired at suggestionGenerated.inc() site
       // For a no-suggestion happy path, outcome='not_generated' is still incremented
@@ -227,7 +229,8 @@ describe('GET /metrics (integration)', () => {
       expect(text).toMatch(/dispatch_fallback_total/);
 
       // distance_provider_calls_total{result} — wired in HaversineDistanceProvider.getEtaSeconds
-      expect(getCounterValue(text, 'distance_provider_calls_total')).toBeGreaterThan(0);
+      // prom-client emits with labels when labelNames is set, so we must pass the label
+      expect(getCounterValue(text, 'distance_provider_calls_total', { result: 'computed' })).toBeGreaterThan(0);
     });
 
     // F6 — fallbackTotal incremented on fallback path
