@@ -53,9 +53,7 @@ describe('Global ThrottlerGuard (integration · T-030)', () => {
     const { APP_GUARD } = await import('@nestjs/core');
 
     @Module({
-      imports: [
-        ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
-      ],
+      imports: [ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }])],
       controllers: [ThrottleTestController],
       providers: [
         {

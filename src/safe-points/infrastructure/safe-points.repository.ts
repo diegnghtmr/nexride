@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { SafePointEntity } from './safe-point.entity';
 import { SafePointAuditEntity, AuditAction } from './safe-point-audit.entity';
 import { GeoPoint, SafePoint } from '../../common/interfaces/shared-types';
@@ -23,8 +23,9 @@ export interface AuditInput {
 export class SafePointsRepository {
   constructor(private readonly dataSource: DataSource) {}
 
-  async create(input: CreateSafePointInput): Promise<SafePoint> {
-    const result = await this.dataSource.query<
+  async create(input: CreateSafePointInput, manager?: EntityManager): Promise<SafePoint> {
+    const runner = manager ?? this.dataSource;
+    const result = await runner.query<
       Array<{
         id: string;
         name: string;
@@ -73,7 +74,8 @@ export class SafePointsRepository {
     return this.mapRow(row, { lat: parseFloat(row.lat), lng: parseFloat(row.lng) });
   }
 
-  async update(id: string, input: UpdateSafePointInput): Promise<SafePoint | null> {
+  async update(id: string, input: UpdateSafePointInput, manager?: EntityManager): Promise<SafePoint | null> {
+    const runner = manager ?? this.dataSource;
     const setClauses: string[] = ['updated_at = now()', 'updated_by = $2'];
     const params: unknown[] = [id, input.updatedBy];
     let paramIdx = 3;
@@ -99,7 +101,7 @@ export class SafePointsRepository {
       params.push(this.toWKT(input.location));
     }
 
-    const rows = await this.dataSource.query<
+    const rows = await runner.query<
       Array<{
         id: string;
         name: string;
@@ -126,8 +128,9 @@ export class SafePointsRepository {
     return this.mapRow(row, { lat: parseFloat(row.lat), lng: parseFloat(row.lng) });
   }
 
-  async delete(id: string): Promise<void> {
-    await this.dataSource.query(`DELETE FROM safe_points WHERE id = $1`, [id]);
+  async delete(id: string, manager?: EntityManager): Promise<void> {
+    const runner = manager ?? this.dataSource;
+    await runner.query(`DELETE FROM safe_points WHERE id = $1`, [id]);
   }
 
   async findWithin(point: GeoPoint, radiusM: number): Promise<SafePoint[]> {
@@ -157,8 +160,9 @@ export class SafePointsRepository {
     return rows.map((row) => this.mapRow(row, { lat: parseFloat(row.lat), lng: parseFloat(row.lng) }));
   }
 
-  async writeAudit(input: AuditInput): Promise<void> {
-    await this.dataSource.query(
+  async writeAudit(input: AuditInput, manager?: EntityManager): Promise<void> {
+    const runner = manager ?? this.dataSource;
+    await runner.query(
       `INSERT INTO safe_point_audit (safe_point_id, action, reason, changed_by, snapshot)
        VALUES ($1, $2, $3, $4, $5)`,
       [

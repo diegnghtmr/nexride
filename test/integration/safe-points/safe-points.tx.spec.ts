@@ -135,10 +135,7 @@ describe('SafePoints Transactional Atomicity (integration · T-029)', () => {
     expect(result.id).toBeDefined();
     expect(result.name).toBe(validInput.name);
 
-    const spRows = await dataSource.query<{ id: string }[]>(
-      `SELECT id FROM safe_points WHERE id = $1`,
-      [result.id],
-    );
+    const spRows = await dataSource.query<{ id: string }[]>(`SELECT id FROM safe_points WHERE id = $1`, [result.id]);
     expect(spRows).toHaveLength(1);
 
     const auditRows = await dataSource.query<{ action: string }[]>(

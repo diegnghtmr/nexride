@@ -114,6 +114,7 @@ describe('SafePointsService', () => {
           reason: mockSafePoint.reason,
           changedBy: 'user-1',
         }),
+        expect.anything(), // EntityManager passed from transaction
       );
     });
   });
@@ -150,6 +151,7 @@ describe('SafePointsService', () => {
           reason: 'Cambio de nombre',
           changedBy: 'user-2',
         }),
+        expect.anything(), // EntityManager passed from transaction
       );
     });
   });
@@ -169,6 +171,7 @@ describe('SafePointsService', () => {
           reason: 'Ya no necesario',
           changedBy: 'user-3',
         }),
+        expect.anything(), // EntityManager passed from transaction
       );
       // Audit is written BEFORE delete to preserve the snapshot
       expect(repo.writeAudit.mock.invocationCallOrder[0]).toBeLessThan(repo.delete.mock.invocationCallOrder[0]);
@@ -192,6 +195,7 @@ describe('SafePointsService', () => {
           reason: 'Temporalmente inactivo',
           changedBy: 'user-4',
         }),
+        expect.anything(), // EntityManager passed from transaction
       );
     });
   });
