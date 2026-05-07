@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { QueryFailedError, Repository } from 'typeorm';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { IDecisionRepository } from '../../../common/interfaces/IDecisionRepository';
 import { PreliminaryDecision } from '../../../common/interfaces/shared-types';
 import { DispatchDecisionEntity } from './dispatch-decision.entity';
@@ -10,6 +11,8 @@ export class DecisionRepository implements IDecisionRepository {
   constructor(
     @InjectRepository(DispatchDecisionEntity)
     private readonly repo: Repository<DispatchDecisionEntity>,
+    @InjectPinoLogger(DecisionRepository.name)
+    private readonly logger: PinoLogger,
   ) {}
 
   async savePreliminary(decision: PreliminaryDecision): Promise<void> {
@@ -40,6 +43,11 @@ export class DecisionRepository implements IDecisionRepository {
       // duplicate insert with 23505 unique_violation. We silently no-op here — the first
       // write (fallback row) is the canonical record.
       if (err instanceof QueryFailedError && (err as unknown as { code: string }).code === '23505') {
+        // F9 — warn on idempotent skip so it's observable without paging (not an error)
+        this.logger.warn(
+          { requestId: decision.requestId, code: '23505' },
+          'Preliminary decision idempotent skip — late pipeline write detected after abort guard',
+        );
         return;
       }
       throw err;
