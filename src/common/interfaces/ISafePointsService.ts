@@ -16,8 +16,11 @@ export interface UpdateSafePointInput {
   zoneId?: string;
   safetyScore?: number;
   status?: 'active' | 'inactive';
-  /** Intentionally optional — service enforces presence and throws SafePointReasonRequiredError */
+  /** Optional. When provided, updates the catalog `reason` column of the safe-point record. */
   reason?: string;
+  /** Mandatory. Why this mutation is happening — written to the audit row,
+   *  never to the catalog `reason` column. */
+  auditReason: string;
   updatedBy: string;
 }
 
