@@ -43,9 +43,42 @@ import { RenameAnalyticsColumns17000000010006 } from './migrations/1700000001000
     // Observability — exposes GET /metrics with Prometheus registry (REQ-FIX-03)
     ObservabilityModule,
 
-    // Rate limiting — 100 req/min per IP globally (REQ-FIX-V8-08 / F10)
-    // Bypass via THROTTLER_DISABLED=1 for integration tests (see test/integration/setup.ts)
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
+    // NFR-17: two-tier rate limiting — 100 req/min per user (JWT userId), 1000 req/min per IP.
+    // Each named throttler has its own getTracker so keys are independent:
+    //   user throttler: key = req.user?.id ?? req.ip  (authenticated users bucketed by userId)
+    //   ip   throttler: key = req.ip                   (all traffic bucketed by IP regardless of auth)
+    //
+    // Escape hatches (per route or controller):
+    //   @SkipThrottle({ user: true, ip: true })   — skip all named throttlers
+    //   @Throttle({ user: { limit: N, ttl: T } }) — override per named throttler
+    //
+    // Test knobs (env-driven, never set in production):
+    //   THROTTLER_DISABLED=1         — bypass BOTH throttlers (see ConfigurableThrottlerGuard)
+    //   THROTTLER_TEST_LIMIT=10      — override ip throttler limit (test/integration/rides/throttling.spec.ts)
+    //   THROTTLE_USER_LIMIT=N        — override user throttler limit
+    //   THROTTLE_IP_LIMIT=N          — override ip throttler limit (non-test override)
+    ThrottlerModule.forRoot([
+      {
+        name: 'user',
+        ttl: 60_000,
+        limit: parseInt(process.env['THROTTLE_USER_LIMIT'] ?? '100', 10),
+        getTracker: (req: Record<string, unknown>) => {
+          const user = req['user'] as { id?: unknown } | undefined;
+          const userId = user?.id;
+          return userId ? (userId as string) : ((req['ip'] as string | undefined) ?? 'anonymous');
+        },
+      },
+      {
+        name: 'ip',
+        ttl: 60_000,
+        // Limit is a lazy function so THROTTLER_TEST_LIMIT is read at request time,
+        // not at module-decorator evaluation time (which runs at import in Node.js).
+        // This allows integration tests to set the env var in beforeAll and have it
+        // take effect even though AppModule is statically imported at file parse time.
+        limit: () => parseInt(process.env['THROTTLER_TEST_LIMIT'] ?? process.env['THROTTLE_IP_LIMIT'] ?? '1000', 10),
+        getTracker: (req: Record<string, unknown>) => (req['ip'] as string | undefined) ?? 'anonymous',
+      },
+    ]),
 
     // TypeORM — env-driven config; migrations registered (design §5)
     TypeOrmModule.forRootAsync({
