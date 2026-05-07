@@ -104,13 +104,10 @@ export class DispatchAnalyticsHandler {
 
   @OnEvent(DispatchEventName.NoAvailability, { async: true })
   async onNoAvailability(payload: NoAvailabilityPayload): Promise<void> {
-    await this.persist(
-      DispatchEventName.NoAvailability,
-      payload.requestId,
-      undefined,
-      payload.riderId,
-      { reason: payload.reason, ts: payload.ts } as unknown as Record<string, unknown>,
-    );
+    await this.persist(DispatchEventName.NoAvailability, payload.requestId, undefined, payload.riderId, {
+      reason: payload.reason,
+      ts: payload.ts,
+    } as unknown as Record<string, unknown>);
   }
 
   private async persist(

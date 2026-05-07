@@ -50,7 +50,9 @@ describe('FleetService', () => {
 
   describe('findCandidatesInRadius()', () => {
     it('1. vehicle outside radius excluded — adapter returns empty, service returns empty', async () => {
-      adapter.getVehicleIdsInRadius.mockResolvedValue([] as Array<{ id: string; distanceM: number; location: { lat: number; lng: number } }>);
+      adapter.getVehicleIdsInRadius.mockResolvedValue(
+        [] as Array<{ id: string; distanceM: number; location: { lat: number; lng: number } }>,
+      );
 
       const result = await service.findCandidatesInRadius({ lat: 4.65, lng: -74.05 }, 5);
 
