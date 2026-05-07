@@ -159,7 +159,7 @@ describe('GET /metrics (integration)', () => {
         .expect(201);
 
       const metricsRes = await request(app.getHttpServer()).get('/metrics').expect(200);
-      expect(getCounterValue(metricsRes.text, 'dispatch_confirm_total', { outcome: 'success' })).toBeGreaterThan(0);
+      expect(getCounterValue(metricsRes.text, 'dispatch_confirm_total', { outcome: 'assigned' })).toBeGreaterThan(0);
     });
 
     it('dispatch_candidates_count_count is greater than 0 after an evaluate call', async () => {

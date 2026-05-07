@@ -202,8 +202,8 @@ describe('POST /rides/request (integration)', () => {
     await new Promise((r) => setTimeout(r, 50));
 
     expect(events.length).toBeGreaterThanOrEqual(1);
-    const event = events[0] as { userId: string };
-    expect(event.userId).toBe('rider-03');
+    const event = events[0] as { riderId: string };
+    expect(event.riderId).toBe('rider-03');
 
     eventEmitter.removeAllListeners(DispatchEventName.RequestCreated);
   });
