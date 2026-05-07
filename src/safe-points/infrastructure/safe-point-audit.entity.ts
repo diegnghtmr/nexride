@@ -1,6 +1,7 @@
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
-export type AuditAction = 'CREATE' | 'UPDATE' | 'DEACTIVATE' | 'ACTIVATE' | 'DELETE';
+export type AuditAction = 'CREATE' | 'UPDATE' | 'DEACTIVATE' | 'DELETE';
+// DB CHECK constraint (migration 17000000010001) still permits 'ACTIVATE'; intentionally not migrated — see docs/rubric-checklist.md F5 v9-deferred.
 
 /**
  * TypeORM entity for the `safe_point_audit` table.
