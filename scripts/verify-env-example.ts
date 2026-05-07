@@ -12,8 +12,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
-import { parse as eslintParse } from '@typescript-eslint/parser';
-import { AST_NODE_TYPES } from '@typescript-eslint/types';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -29,17 +27,17 @@ const SRC_DIR = path.join(REPO_ROOT, 'src');
  * when adding genuinely optional / platform-injected keys.
  */
 const OPTIONAL_KEYS = new Set([
-  'NODE_ENV',    // standard Node.js env; must be in .env.example but also appears in CI auto-inject
   'CI',
   'GITHUB_TOKEN',
   'GITHUB_REF_NAME',
   'GITHUB_SHA',
   'npm_lifecycle_event',
   'npm_package_version',
-  // Keys accessed only in test/integration helpers (not src/)
-  'THROTTLE_USER_LIMIT',   // app.module.ts uses it but it is an optional prod override
+  // Keys that are optional production overrides or test-only (present in
+  // .env.example as empty values or omitted intentionally):
+  'THROTTLE_USER_LIMIT',   // optional per-user override; has app default
   'THROTTLER_TEST_LIMIT',  // integration-test-only override
-  'THROTTLE_IP_LIMIT',     // optional prod override
+  'THROTTLE_IP_LIMIT',     // optional per-IP override; has app default
 ]);
 
 // ---------------------------------------------------------------------------
@@ -58,7 +56,7 @@ function info(msg: string): void {
 }
 
 // ---------------------------------------------------------------------------
-// Step 1: Read .env.example
+// Step 1: Resolve file path
 // ---------------------------------------------------------------------------
 
 const envExamplePath = (() => {
@@ -114,7 +112,7 @@ if (parsedKeyCount === 0) {
 }
 
 // ---------------------------------------------------------------------------
-// Step 4: AST scan of src/**/*.ts for process.env access
+// Step 4: Regex scan of src/**/*.ts for process.env access
 // ---------------------------------------------------------------------------
 
 function collectTsFiles(dir: string): string[] {
@@ -131,68 +129,19 @@ function collectTsFiles(dir: string): string[] {
   return results;
 }
 
-function collectEnvKeysFromAst(filePath: string): Set<string> {
+// Match: process.env.KEY  or  process.env['KEY']  or  process.env["KEY"]
+// eslint-disable-next-line no-useless-escape
+const ENV_KEY_REGEX = /process\.env(?:\.([A-Z_][A-Z0-9_]*)|(?:\[['"]([A-Z_][A-Z0-9_]*)['"\]]\]))/g;
+
+function collectEnvKeysFromFile(filePath: string): Set<string> {
   const keys = new Set<string>();
   const source = fs.readFileSync(filePath, 'utf8');
-
-  let ast: ReturnType<typeof eslintParse>;
-  try {
-    ast = eslintParse(source, {
-      range: true,
-      loc: true,
-      tokens: false,
-      comment: false,
-      jsx: false,
-    });
-  } catch {
-    // File might have syntax issues — fall back to regex
-    const regex = /process\.env(?:\.([A-Z_][A-Z0-9_]*)|(?:\[['"]([A-Z_][A-Z0-9_]*)['"]]\]))/g;
-    let m: RegExpExecArray | null;
-    while ((m = regex.exec(source)) !== null) {
-      const key = m[1] ?? m[2];
-      if (key) keys.add(key);
-    }
-    return keys;
+  let m: RegExpExecArray | null;
+  ENV_KEY_REGEX.lastIndex = 0;
+  while ((m = ENV_KEY_REGEX.exec(source)) !== null) {
+    const key = m[1] ?? m[2];
+    if (key) keys.add(key);
   }
-
-  function visit(node: unknown): void {
-    if (!node || typeof node !== 'object') return;
-    const n = node as Record<string, unknown>;
-
-    // Detect: process.env.KEY (MemberExpression on process.env)
-    if (
-      n.type === AST_NODE_TYPES.MemberExpression &&
-      typeof n.object === 'object' && n.object !== null &&
-      (n.object as Record<string, unknown>).type === AST_NODE_TYPES.MemberExpression
-    ) {
-      const obj = n.object as Record<string, unknown>;
-      const innerObj = obj.object as Record<string, unknown> | undefined;
-      const innerProp = obj.property as Record<string, unknown> | undefined;
-      if (
-        innerObj?.type === AST_NODE_TYPES.Identifier && (innerObj as Record<string, unknown>).name === 'process' &&
-        innerProp?.type === AST_NODE_TYPES.Identifier && (innerProp as Record<string, unknown>).name === 'env'
-      ) {
-        // n.property is the key
-        const prop = n.property as Record<string, unknown> | undefined;
-        if (prop?.type === AST_NODE_TYPES.Identifier) {
-          keys.add(prop.name as string);
-        } else if (prop?.type === AST_NODE_TYPES.Literal && typeof prop.value === 'string') {
-          keys.add(prop.value);
-        }
-      }
-    }
-
-    // Recurse into all child nodes
-    for (const value of Object.values(n)) {
-      if (Array.isArray(value)) {
-        value.forEach(visit);
-      } else if (value && typeof value === 'object') {
-        visit(value);
-      }
-    }
-  }
-
-  visit(ast.body);
   return keys;
 }
 
@@ -201,7 +150,7 @@ info(`Scanning ${srcFiles.length} TypeScript files in src/ for process.env acces
 
 const requiredKeys = new Set<string>();
 for (const file of srcFiles) {
-  const keys = collectEnvKeysFromAst(file);
+  const keys = collectEnvKeysFromFile(file);
   for (const key of keys) {
     requiredKeys.add(key);
   }
@@ -224,8 +173,8 @@ for (const key of requiredKeys) {
 if (missingKeys.length > 0) {
   fail(
     `Missing key(s) in ${path.basename(envExamplePath)}: ${missingKeys.join(', ')}\n` +
-    `  These keys are referenced in src/ but absent from the template.\n` +
-    `  Add them or add to OPTIONAL_KEYS allowlist if intentionally absent.`,
+      `  These keys are referenced in src/ but absent from the template.\n` +
+      `  Add them or add to OPTIONAL_KEYS allowlist if intentionally absent.`,
   );
 } else {
   info(`All required runtime keys are present in ${path.basename(envExamplePath)}.`);
