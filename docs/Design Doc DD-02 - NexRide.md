@@ -56,7 +56,7 @@ Las decisiones tomadas en el RFC que afectan directamente este diseño son:
 * Implementar un pipeline de despacho que evalúe múltiples factores en un tiempo de decisión p95 ≤ 800 ms y p99 ≤ 1.2 s.  
 * Garantizar que al menos el 95 % de las asignaciones cumplan simultáneamente criterios de batería, elegibilidad y punto de abordaje.  
 * Reducir asignaciones inviables por batería a menos del 2 % sobre solicitudes confirmadas.  
-* Hacer que todos los parámetros del scoring sean configurables sin redespliegue.  
+* Hacer que todos los parámetros del scoring sean configurables vía variables de entorno (en MVP requiere reinicio; el contrato `IFlagProvider` permite swap a Unleash/LaunchDarkly post-MVP para hot-reload).  
 * Registrar la decisión completa (candidatos, scores, resultado, tiempos) para análisis y mejora continua.  
 * Soportar fallback a reglas simplificadas si el motor contextual falla o excede tiempos.
 
@@ -80,7 +80,7 @@ Del TRD, los requisitos que definen el comportamiento del motor, vinculados a lo
 | RTF-16 | Generar candidatos dentro de radio configurable (default 5 km) | Pipeline de despacho con fase de candidatura |
 | RTF-17 | Filtrar por batería insuficiente, conductor no elegible, vehículo fuera de servicio | ≥ 95 % de asignaciones que cumplan simultáneamente batería, elegibilidad y punto |
 | RTF-18 | Evaluar puntos seguros dentro de 120 m del origen | Pipeline con evaluación multifactorial |
-| RTF-19 | Scoring compuesto: proximidad (0.30), energía (0.25), seguridad (0.25), continuidad (0.20) | Todos los parámetros configurables sin redespliegue |
+| RTF-19 | Scoring compuesto: proximidad (0.30), energía (0.25), seguridad (0.25), continuidad (0.20) | Todos los parámetros configurables vía env (reinicio en MVP; hot-reload post-MVP vía IFlagProvider) |
 | RTF-20 | Sugerencia solo si mejora ≥ 15 % en score de seguridad vs. punto original | Reducir asignaciones inviables por batería a \< 2 % |
 | RTF-21 | Fallback configurable por zona si no hay asignación viable | Soportar fallback a reglas simplificadas |
 | RTF-22 | Registrar decisión completa como evento analítico | Registrar decisión completa para análisis y mejora continua |
@@ -132,7 +132,7 @@ Finalmente, el sistema toma una decisión y selecciona la mejor combinación dis
 ### **Decisión 2: Scoring por pesos estáticos configurables**
 
 * Decisión: el score compuesto se calcula como suma ponderada con pesos estáticos configurables por feature flag.  
-* Motivación: para el MVP no se dispone de datos históricos suficientes para entrenar un modelo ML. Los pesos estáticos permiten ajuste manual basado en observación operativa. La configuración por feature flag permite cambiar pesos sin redespliegue.  
+* Motivación: para el MVP no se dispone de datos históricos suficientes para entrenar un modelo ML. Los pesos estáticos permiten ajuste manual basado en observación operativa. Históricamente se proyectó cambiar pesos sin redespliegue; en el MVP los flags se leen desde variables de entorno y requieren reinicio. El contrato `IFlagProvider` aísla la implementación, permitiendo migrar a Unleash/LaunchDarkly post-MVP sin tocar el dominio.  
 * Fórmula:
 
 ![][image5]
@@ -367,8 +367,8 @@ Este módulo corresponde a la Fase 2 del plan del DD-01 (semanas 5-7).
 ### **Rollback**
 
 * Feature flag dispatch.contextual.enabled \= false desactiva el motor completo y activa fallback permanente (vehículo más cercano \+ batería mínima).  
-* Los pesos del scoring pueden ajustarse en caliente vía feature flags.  
-* El umbral de sugerencia puede elevarse a 100 % (efectivamente deshabilitando sugerencias) sin redespliegue.
+* Los pesos del scoring son ajustables vía feature flags configurados por env (reinicio requerido en MVP; hot-reload post-MVP vía swap a Unleash/LaunchDarkly bajo el contrato `IFlagProvider` original).  
+* El umbral de sugerencia puede elevarse a 100 % (efectivamente deshabilitando sugerencias) cambiando la variable de entorno y reiniciando el proceso en MVP; hot-reload queda para el provider post-MVP.
 
 ---
 
