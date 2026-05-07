@@ -64,6 +64,13 @@ export interface TripAssignedPayload {
   ts: string;
 }
 
+export interface NoAvailabilityPayload {
+  requestId: string;
+  riderId: string;
+  reason: string;
+  ts: string; // ISO-8601
+}
+
 export type EventPayloadMap = {
   [DispatchEventName.RequestCreated]: RequestCreatedPayload;
   [DispatchEventName.SuggestionShown]: SuggestionShownPayload;
@@ -72,6 +79,7 @@ export type EventPayloadMap = {
   [DispatchEventName.FallbackActivated]: FallbackActivatedPayload;
   [DispatchEventName.Completed]: CompletedPayload;
   [DispatchEventName.TripAssigned]: TripAssignedPayload;
+  [DispatchEventName.NoAvailability]: NoAvailabilityPayload;
 };
 
 export type PayloadOf<E extends DispatchEventName> = EventPayloadMap[E];

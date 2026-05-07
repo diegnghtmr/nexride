@@ -6,4 +6,5 @@ export enum DispatchEventName {
   FallbackActivated = 'dispatch.fallback_activated',
   Completed = 'dispatch.completed',
   TripAssigned = 'trip.assigned',
+  NoAvailability = 'dispatch.no_availability',
 }

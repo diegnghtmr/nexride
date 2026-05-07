@@ -11,6 +11,7 @@ import { DecisionRecorder } from '../domain/services/decision-recorder';
 import { GeoPoint } from '../domain/value-objects/geo-point.vo';
 import { NoAvailabilityError } from '../../common/errors/domain-error';
 import { DispatchEventName } from '../../common/events/event-names';
+import { NoAvailabilityPayload } from '../../common/events/event-payloads';
 
 export interface EvaluateDispatchInput {
   riderId: string;
@@ -153,6 +154,15 @@ export class EvaluateDispatchUseCase {
           ttlSeconds: 60,
         };
       } catch {
+        // Emit no_availability event before throwing (F8 — application layer, NOT domain)
+        const noAvailabilityPayload: NoAvailabilityPayload = {
+          requestId,
+          riderId: input.riderId,
+          reason: 'no_candidates_after_fallback',
+          ts: new Date().toISOString(),
+        };
+        this.eventEmitter.emit(DispatchEventName.NoAvailability, noAvailabilityPayload);
+        this.metrics?.noAvailability.inc();
         throw new NoAvailabilityError('No viable vehicle available', { requestId });
       }
     }
