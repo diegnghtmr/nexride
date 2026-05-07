@@ -1,4 +1,5 @@
 import { Controller, Get, Inject, Res } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { Registry } from 'prom-client';
 
@@ -8,6 +9,9 @@ export const METRICS_REGISTRY = 'METRICS_REGISTRY';
 export class MetricsController {
   constructor(@Inject(METRICS_REGISTRY) private readonly registry: Registry) {}
 
+  // Exempt from throttle: Prometheus scraping must not count toward per-user or per-IP buckets.
+  // Burst probes during rolling deploys could otherwise trip the 100/min user throttler (D-003).
+  @SkipThrottle()
   @Get()
   async getMetrics(@Res() res: Response): Promise<void> {
     const metrics = await this.registry.metrics();

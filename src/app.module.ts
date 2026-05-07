@@ -43,9 +43,34 @@ import { RenameAnalyticsColumns17000000010006 } from './migrations/1700000001000
     // Observability — exposes GET /metrics with Prometheus registry (REQ-FIX-03)
     ObservabilityModule,
 
-    // Rate limiting — 100 req/min per IP globally (REQ-FIX-V8-08 / F10)
-    // Bypass via THROTTLER_DISABLED=1 for integration tests (see test/integration/setup.ts)
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
+    // NFR-17: two-tier rate limiting — 100 req/min per user (JWT userId), 1000 req/min per IP.
+    // ConfigurableThrottlerGuard.getTracker returns req.user?.id ?? req.ip for BOTH throttlers;
+    // each named throttler maintains its own independent bucket under that key.
+    //
+    // Escape hatches (per route or controller):
+    //   @SkipThrottle({ user: true, ip: true })   — skip all named throttlers
+    //   @Throttle({ user: { limit: N, ttl: T } }) — override per named throttler
+    //
+    // Test knobs (env-driven, never set in production):
+    //   THROTTLER_DISABLED=1         — bypass BOTH throttlers (see ConfigurableThrottlerGuard)
+    //   THROTTLER_TEST_LIMIT=10      — override ip throttler limit (test/integration/rides/throttling.spec.ts)
+    //   THROTTLE_USER_LIMIT=N        — override user throttler limit
+    //   THROTTLE_IP_LIMIT=N          — override ip throttler limit (non-test override)
+    ThrottlerModule.forRoot([
+      {
+        name: 'user',
+        ttl: 60_000,
+        limit: parseInt(process.env['THROTTLE_USER_LIMIT'] ?? '100', 10),
+      },
+      {
+        name: 'ip',
+        ttl: 60_000,
+        limit: parseInt(
+          process.env['THROTTLER_TEST_LIMIT'] ?? process.env['THROTTLE_IP_LIMIT'] ?? '1000',
+          10,
+        ),
+      },
+    ]),
 
     // TypeORM — env-driven config; migrations registered (design §5)
     TypeOrmModule.forRootAsync({
