@@ -175,10 +175,7 @@ describe('SafePoints PATCH — reason vs auditReason (integration)', () => {
         .expect(200);
 
       // Verify catalog reason persisted in DB (authoritative check)
-      const dbRows = await dataSource.query<{ reason: string }[]>(
-        `SELECT reason FROM safe_points WHERE id = $1`,
-        [id],
-      );
+      const dbRows = await dataSource.query<{ reason: string }[]>(`SELECT reason FROM safe_points WHERE id = $1`, [id]);
       expect(dbRows).toHaveLength(1);
       expect(dbRows[0].reason).toBe('new security justification');
 
