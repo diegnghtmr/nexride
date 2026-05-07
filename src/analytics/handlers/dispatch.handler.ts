@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -15,6 +15,8 @@ import {
   TripAssignedPayload,
   NoAvailabilityPayload,
 } from '../../common/events/event-payloads';
+import { DISPATCH_METRICS } from '../../common/observability/observability.module';
+import { DispatchMetrics } from '../../common/observability/metrics.registry';
 
 @Injectable()
 export class DispatchAnalyticsHandler {
@@ -23,6 +25,7 @@ export class DispatchAnalyticsHandler {
     private readonly analyticsRepo: Repository<AnalyticsEventEntity>,
     @InjectPinoLogger(DispatchAnalyticsHandler.name)
     private readonly logger: PinoLogger,
+    @Inject(DISPATCH_METRICS) private readonly metrics: DispatchMetrics,
   ) {}
 
   @OnEvent(DispatchEventName.RequestCreated, { async: true })
@@ -129,6 +132,8 @@ export class DispatchAnalyticsHandler {
       await this.analyticsRepo.save(entity);
     } catch (err) {
       // Analytics must never fail the parent transaction
+      // F7 — increment failure counter BEFORE warn so counter is always recorded
+      this.metrics.analyticsPersistFailures.inc({ event_name: eventName });
       this.logger.warn({ eventName, err }, 'Failed to persist analytics event');
     }
   }
