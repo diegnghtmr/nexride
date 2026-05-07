@@ -12,12 +12,19 @@
  * 5. deactivate writes audit row with action=DEACTIVATE
  * 6. findWithin delegates to repository
  * 7. update with missing reason → throws SafePointReasonRequiredError
+ *
+ * T-028 (RED · F8): writeAudit failure rolls back safe_points creation atomically.
+ * When writeAudit throws inside the transaction, the error propagates to the caller
+ * AND the transaction manager ensures the safe_points row is NOT committed.
+ * The transactional service wraps both calls in dataSource.transaction — the mock
+ * verifies the error propagates, and the integration test (T-029) verifies the DB rollback.
  */
 
 import { SafePointsService } from '../../../src/safe-points/safe-points.service';
 import { SafePointsRepository } from '../../../src/safe-points/infrastructure/safe-points.repository';
 import { SafePointReasonRequiredError } from '../../../src/common/errors/domain-error';
 import { SafePoint } from '../../../src/common/interfaces/shared-types';
+import { QueryFailedError } from 'typeorm';
 
 const mockSafePoint: SafePoint = {
   id: 'sp-uuid-001',
@@ -43,13 +50,29 @@ function makeRepo(): jest.Mocked<SafePointsRepository> {
   } as unknown as jest.Mocked<SafePointsRepository>;
 }
 
+/**
+ * makeDataSource — creates a mock TypeORM DataSource that simulates
+ * dataSource.transaction(callback) by running the callback with a mock EntityManager.
+ * The mock EntityManager is the same repo methods; rollback is simulated by the
+ * callback throwing (which propagates out of the transaction wrapper).
+ */
+function makeDataSource(repo: jest.Mocked<SafePointsRepository>) {
+  return {
+    transaction: jest.fn().mockImplementation(async (callback: (manager: unknown) => Promise<unknown>) => {
+      return callback(repo);
+    }),
+  } as unknown as import('typeorm').DataSource;
+}
+
 describe('SafePointsService', () => {
   let service: SafePointsService;
   let repo: jest.Mocked<SafePointsRepository>;
+  let dataSource: ReturnType<typeof makeDataSource>;
 
   beforeEach(() => {
     repo = makeRepo();
-    service = new SafePointsService(repo);
+    dataSource = makeDataSource(repo);
+    service = new SafePointsService(repo, dataSource as unknown as import('typeorm').DataSource);
   });
 
   describe('create()', () => {
@@ -257,6 +280,55 @@ describe('SafePointsService', () => {
       repo.findById.mockResolvedValue(null);
 
       await expect(service.delete('nonexistent', 'valid reason', 'user-1')).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  // T-028 · RED · F8 — transactional atomicity
+  describe('create() — transactional atomicity (T-028)', () => {
+    it('17. when writeAudit throws QueryFailedError, the error propagates (transaction rolled back)', async () => {
+      // Arrange: repo.create succeeds but writeAudit throws (simulates DB constraint violation)
+      repo.create.mockResolvedValue(mockSafePoint);
+      const auditError = new QueryFailedError('INSERT INTO safe_point_audit', [], new Error('DB error'));
+      repo.writeAudit.mockRejectedValue(auditError);
+
+      // Act & Assert: the service must re-throw; the calling layer sees the error
+      await expect(
+        service.create({
+          name: mockSafePoint.name,
+          zoneId: mockSafePoint.zoneId,
+          reason: mockSafePoint.reason,
+          safetyScore: mockSafePoint.safetyScore,
+          location: mockSafePoint.location,
+          createdBy: 'user-tx',
+        }),
+      ).rejects.toThrow(QueryFailedError);
+
+      // repo.create was called (inside the tx) before writeAudit failed
+      expect(repo.create).toHaveBeenCalledTimes(1);
+      expect(repo.writeAudit).toHaveBeenCalledTimes(1);
+      // dataSource.transaction was used — the unit mock's callback ran and threw
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('18. when create succeeds and writeAudit succeeds, transaction commits and returns safePoint', async () => {
+      repo.create.mockResolvedValue(mockSafePoint);
+      repo.writeAudit.mockResolvedValue(undefined);
+
+      const result = await service.create({
+        name: mockSafePoint.name,
+        zoneId: mockSafePoint.zoneId,
+        reason: mockSafePoint.reason,
+        safetyScore: mockSafePoint.safetyScore,
+        location: mockSafePoint.location,
+        createdBy: 'user-tx',
+      });
+
+      expect(result).toBe(mockSafePoint);
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(repo.writeAudit).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'CREATE' }),
+        expect.anything(), // manager arg
+      );
     });
   });
 });
