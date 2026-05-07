@@ -12,7 +12,7 @@ Fuente: `docs/8. 📄 Guía del estudiante – Código + Pruebas + CI.pdf`
 - Parciales: **1**
 - Faltantes: **0**
 
-Veredicto: **READY TO SUBMIT**. Todos los criterios de la rúbrica tienen evidencia concreta en el repositorio. El parcial declarado es **NFR-21** (OpenTelemetry SDK instalado, `NodeSDK.start()` pendiente — declarado en SCOPE.md como parcial aceptado). Los stubs (Haversine, LocalFlag, TestContextGuard) están justificados como ADRs aceptados por la cláusula de la guía sobre desviaciones documentadas.
+Veredicto: **READY TO SUBMIT** — **NFR-21 parcial** (OpenTelemetry SDK instalado, NodeSDK.start() pendiente, declarado en SCOPE.md). Los demás 17 criterios tienen evidencia concreta. Los stubs (Haversine, LocalFlag, TestContextGuard) están justificados como ADRs aceptados.
 
 ---
 
