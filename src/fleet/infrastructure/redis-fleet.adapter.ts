@@ -50,13 +50,18 @@ export class RedisFleetAdapter implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Returns vehicle IDs within radiusKm of the given origin, sorted by
-   * ascending distance (closest first).
+   * ascending distance (closest first), with real coordinates from Redis GEO.
    */
-  async getVehicleIdsInRadius(origin: GeoPoint, radiusKm: number): Promise<Array<{ id: string; distanceM: number }>> {
-    // GEOSEARCH FROMLONLAT <lng> <lat> BYRADIUS <r> km ASC COUNT 100 WITHCOORD WITHDIST
+  async getVehicleIdsInRadius(
+    origin: GeoPoint,
+    radiusKm: number,
+  ): Promise<Array<{ id: string; distanceM: number; location: { lat: number; lng: number } }>> {
+    // GEOSEARCH FROMLONLAT <lng> <lat> BYRADIUS <r> km ASC COUNT 100 WITHDIST WITHCOORD
+    // ioredis raw response shape with WITHDIST+WITHCOORD:
+    //   Array<[id: string, distStr: string, [lngStr: string, latStr: string]]>
     const results = await (
       this.redis as unknown as {
-        geosearch: (...args: unknown[]) => Promise<Array<[string, [string, string]]>>;
+        geosearch: (...args: unknown[]) => Promise<Array<[string, string, [string, string]]>>;
       }
     ).geosearch(
       'fleet:geo',
@@ -70,16 +75,20 @@ export class RedisFleetAdapter implements OnModuleInit, OnModuleDestroy {
       'COUNT',
       100,
       'WITHDIST',
+      'WITHCOORD',
     );
 
     if (!Array.isArray(results)) return [];
 
     return results.map((entry) => {
-      // When WITHDIST is used without WITHCOORD, ioredis returns [id, distanceStr]
-      // When both are used it returns [id, distStr, [lng, lat]]
-      const [id, distOrCoord] = entry as [string, string | [string, string]];
-      const distKm = typeof distOrCoord === 'string' ? parseFloat(distOrCoord) : 0;
-      return { id, distanceM: distKm * 1000 };
+      // With WITHDIST+WITHCOORD: [id, distStr, [lngStr, latStr]]
+      // WITHDIST returns distance in the unit passed to BYRADIUS (km) — multiply by 1000 for meters.
+      // ioredis returns all values as bulk strings; parseFloat is required.
+      const [id, distStr, coordPair] = entry;
+      const distanceM = parseFloat(distStr) * 1000;
+      const lng = parseFloat(coordPair[0]);
+      const lat = parseFloat(coordPair[1]);
+      return { id, distanceM, location: { lat, lng } };
     });
   }
 

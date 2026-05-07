@@ -30,8 +30,8 @@ export class FleetService implements IFleetService {
     if (vehicleRefs.length === 0) return [];
 
     const candidates = await Promise.all(
-      vehicleRefs.map(async ({ id, distanceM }) => {
-        const snapshot = await this.buildSnapshot(id, distanceM);
+      vehicleRefs.map(async ({ id, distanceM, location }) => {
+        const snapshot = await this.buildSnapshot(id, distanceM, location);
         return snapshot;
       }),
     );
@@ -44,7 +44,11 @@ export class FleetService implements IFleetService {
     return this.buildSnapshot(id);
   }
 
-  private async buildSnapshot(id: string, distanceFromOriginM?: number): Promise<VehicleCandidate | null> {
+  private async buildSnapshot(
+    id: string,
+    distanceFromOriginM?: number,
+    location?: { lat: number; lng: number },
+  ): Promise<VehicleCandidate | null> {
     const hash = await this.redisAdapter.getVehicleHash(id);
     if (!hash) return null;
 
@@ -60,7 +64,7 @@ export class FleetService implements IFleetService {
       status: (hash['state'] as 'available' | 'in_service' | 'out_of_service') ?? 'out_of_service',
       lastTelemetryAt: snapshotAtMs,
       rangeKm: parseFloat(hash['range_km'] ?? '0'),
-      location: { lat: 0, lng: 0 }, // location is in fleet:geo, not in the HASH
+      location: location ?? { lat: 0, lng: 0 },
       telemetryStale,
     };
 
