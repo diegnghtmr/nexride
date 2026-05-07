@@ -108,10 +108,13 @@ export class EvaluateDispatchUseCase {
         controller.signal,
       );
       clearTimeout(timeoutHandle);
+      const successDurationMs = Date.now() - startMs;
       // REQ-OBS-1: emit evaluate success counter
       this.metrics?.evaluateTotal.inc({ outcome: 'success' });
       // REQ-OBS-2: emit evaluate duration histogram
-      this.metrics?.evaluateDurationMs.observe(Date.now() - startMs);
+      this.metrics?.evaluateDurationMs.observe(successDurationMs);
+      // F6 REQ-FIX-V8-06: wire pipelineDuration alongside evaluateDurationMs
+      this.metrics?.pipelineDuration.observe({ outcome: 'success' }, successDurationMs);
       return result;
     } catch (err: unknown) {
       clearTimeout(timeoutHandle);
@@ -150,6 +153,9 @@ export class EvaluateDispatchUseCase {
         this.metrics?.evaluateDurationMs.observe(pipelineDurationMs);
         // F3: fallback activated counter (label-free)
         this.metrics?.fallbackActivated.inc();
+        // F6 REQ-FIX-V8-06: wire pipelineDuration (outcome='fallback') and fallbackTotal{reason}
+        this.metrics?.pipelineDuration.observe({ outcome: 'fallback' }, pipelineDurationMs);
+        this.metrics?.fallbackTotal.inc({ reason: fallbackReason });
 
         return {
           requestId,
@@ -203,7 +209,12 @@ export class EvaluateDispatchUseCase {
     // Phase 1: Candidature
     const candidatureStart = Date.now();
     const { vehicles: rawVehicles, safePoints } = await this.candidateGenerator.generate(origin);
-    this.metrics?.phaseCandidatureDurationMs.observe(Date.now() - candidatureStart);
+    const candidatureDurationMs = Date.now() - candidatureStart;
+    this.metrics?.phaseCandidatureDurationMs.observe(candidatureDurationMs);
+    // F6 REQ-FIX-V8-06: wire phaseDuration{phase:'candidature'} alongside per-phase histogram
+    this.metrics?.phaseDuration.observe({ phase: 'candidature' }, candidatureDurationMs);
+    // F6 REQ-FIX-V8-06: wire candidatesInitial after generate()
+    this.metrics?.candidatesInitial.observe({ zone: 'default' }, rawVehicles.length);
 
     // REQ-FIX-V8-01: abort guard after Phase 1 — pipeline may have timed out while awaiting candidature
     if (signal.aborted) return this.earlyAbortSentinel();
@@ -211,10 +222,15 @@ export class EvaluateDispatchUseCase {
     // Phase 2: Filter
     const filterStart = Date.now();
     const { passed: filtered } = this.candidateFilter.filter(rawVehicles, tripDistanceKm);
-    this.metrics?.phaseFilterDurationMs.observe(Date.now() - filterStart);
+    const filterDurationMs = Date.now() - filterStart;
+    this.metrics?.phaseFilterDurationMs.observe(filterDurationMs);
+    // F6 REQ-FIX-V8-06: wire phaseDuration{phase:'filter'} alongside per-phase histogram
+    this.metrics?.phaseDuration.observe({ phase: 'filter' }, filterDurationMs);
 
     // REQ-OBS-4: record candidate count post-filter
     this.metrics?.candidatesCount.observe(filtered.length);
+    // F6 REQ-FIX-V8-06: wire candidatesAfterFilter{zone} after filter()
+    this.metrics?.candidatesAfterFilter.observe({ zone: 'default' }, filtered.length);
 
     if (filtered.length === 0) {
       throw new Error('EMPTY_AFTER_FILTER');
@@ -256,7 +272,10 @@ export class EvaluateDispatchUseCase {
 
     const combos = scoreResults.map((r) => r.combo);
     const safePointMap = new Map(scoreResults.map((r) => [r.combo.safePointId, r.safePoint]));
-    this.metrics?.phaseScoringDurationMs.observe(Date.now() - scoringStart);
+    const scoringDurationMs = Date.now() - scoringStart;
+    this.metrics?.phaseScoringDurationMs.observe(scoringDurationMs);
+    // F6 REQ-FIX-V8-06: wire phaseDuration{phase:'scoring'} alongside per-phase histogram
+    this.metrics?.phaseDuration.observe({ phase: 'scoring' }, scoringDurationMs);
 
     // REQ-FIX-V8-01: abort guard after Phase 3 scoring
     if (signal.aborted) return this.earlyAbortSentinel();
@@ -322,6 +341,8 @@ export class EvaluateDispatchUseCase {
     // Emit suggestion event if applicable
     if (decision.suggestion) {
       this.metrics?.suggestionGenerated.inc();
+      // F6 REQ-FIX-V8-06: wire suggestionTotal{outcome:'generated'} alongside label-free counter
+      this.metrics?.suggestionTotal.inc({ outcome: 'generated' });
       this.eventEmitter.emit(DispatchEventName.SuggestionShown, {
         requestId,
         riderId,
