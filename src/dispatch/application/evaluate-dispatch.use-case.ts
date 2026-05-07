@@ -140,6 +140,8 @@ export class EvaluateDispatchUseCase {
         // REQ-OBS-1: emit fallback counter and duration
         this.metrics?.evaluateTotal.inc({ outcome: 'fallback' });
         this.metrics?.evaluateDurationMs.observe(pipelineDurationMs);
+        // F3: fallback activated counter (label-free)
+        this.metrics?.fallbackActivated.inc();
 
         return {
           requestId,
@@ -177,10 +179,14 @@ export class EvaluateDispatchUseCase {
     startMs: number,
   ): Promise<EvaluateDispatchOutput> {
     // Phase 1: Candidature
+    const candidatureStart = Date.now();
     const { vehicles: rawVehicles, safePoints } = await this.candidateGenerator.generate(origin);
+    this.metrics?.phaseCandidatureDurationMs.observe(Date.now() - candidatureStart);
 
     // Phase 2: Filter
+    const filterStart = Date.now();
     const { passed: filtered } = this.candidateFilter.filter(rawVehicles, tripDistanceKm);
+    this.metrics?.phaseFilterDurationMs.observe(Date.now() - filterStart);
 
     // REQ-OBS-4: record candidate count post-filter
     this.metrics?.candidatesCount.observe(filtered.length);
@@ -190,6 +196,7 @@ export class EvaluateDispatchUseCase {
     }
 
     // Phase 3: Scoring — build (vehicle × safePoint|null) matrix
+    const scoringStart = Date.now();
     const scoringInputs = filtered.flatMap((vehicle) => {
       const combos = [
         {
@@ -224,6 +231,7 @@ export class EvaluateDispatchUseCase {
 
     const combos = scoreResults.map((r) => r.combo);
     const safePointMap = new Map(scoreResults.map((r) => [r.combo.safePointId, r.safePoint]));
+    this.metrics?.phaseScoringDurationMs.observe(Date.now() - scoringStart);
 
     // Phase 4: Decision
     const decision = this.decisionMaker.decide(combos);
@@ -266,6 +274,7 @@ export class EvaluateDispatchUseCase {
 
     // Emit suggestion event if applicable
     if (decision.suggestion) {
+      this.metrics?.suggestionGenerated.inc();
       const originalCombo = combos.find((c) => c.vehicleId === decision.primary.vehicleId && c.safePointId === null);
       this.eventEmitter.emit(DispatchEventName.SuggestionShown, {
         requestId,

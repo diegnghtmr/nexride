@@ -173,5 +173,20 @@ describe('GET /metrics (integration)', () => {
       const metricsRes = await request(app.getHttpServer()).get('/metrics').expect(200);
       expect(getCounterValue(metricsRes.text, 'dispatch_candidates_count_count')).toBeGreaterThan(0);
     });
+
+    // F3: DD-02 §14 phase histograms registered and observed after evaluate
+    it('dispatch_phase_candidature_duration_ms_bucket appears in /metrics after evaluate (F3)', async () => {
+      await request(app.getHttpServer())
+        .post('/rides/request')
+        .set('x-test-rider-id', 'rider-metrics-f3')
+        .set('x-test-rider-role', 'rider')
+        .send({ origin: ORIGIN, destination: DESTINATION })
+        .expect(201);
+
+      const metricsRes = await request(app.getHttpServer()).get('/metrics').expect(200);
+      expect(metricsRes.text).toMatch(/dispatch_phase_candidature_duration_ms_bucket/);
+      expect(metricsRes.text).toMatch(/dispatch_phase_filter_duration_ms_bucket/);
+      expect(metricsRes.text).toMatch(/dispatch_phase_scoring_duration_ms_bucket/);
+    });
   });
 });
