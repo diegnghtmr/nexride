@@ -75,13 +75,8 @@ import { RenameAnalyticsColumns17000000010006 } from './migrations/1700000001000
         // not at module-decorator evaluation time (which runs at import in Node.js).
         // This allows integration tests to set the env var in beforeAll and have it
         // take effect even though AppModule is statically imported at file parse time.
-        limit: () =>
-          parseInt(
-            process.env['THROTTLER_TEST_LIMIT'] ?? process.env['THROTTLE_IP_LIMIT'] ?? '1000',
-            10,
-          ),
-        getTracker: (req: Record<string, unknown>) =>
-          (req['ip'] as string | undefined) ?? 'anonymous',
+        limit: () => parseInt(process.env['THROTTLER_TEST_LIMIT'] ?? process.env['THROTTLE_IP_LIMIT'] ?? '1000', 10),
+        getTracker: (req: Record<string, unknown>) => (req['ip'] as string | undefined) ?? 'anonymous',
       },
     ]),
 

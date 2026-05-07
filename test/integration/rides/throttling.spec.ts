@@ -163,9 +163,7 @@ describe('Two-Tier Throttling Integration (T-004)', () => {
       .send({ origin: ORIGIN, destination: DESTINATION });
 
     expect(limitedRes.status).toBe(429);
-    expect(limitedRes.body).toMatchObject(
-      expect.objectContaining({ statusCode: 429 }),
-    );
+    expect(limitedRes.body).toMatchObject(expect.objectContaining({ statusCode: 429 }));
   }, 120_000);
 
   it('Scenario 2 — per-IP throttler: THROTTLER_TEST_LIMIT requests succeed, (limit+1)th returns 429', async () => {
@@ -205,9 +203,7 @@ describe('Two-Tier Throttling Integration (T-004)', () => {
   it('Scenario 3 — unauthenticated fallback: request without auth does NOT return 500', async () => {
     const server = app.getHttpServer();
 
-    const res = await request(server)
-      .post('/rides/request')
-      .send({ origin: ORIGIN, destination: DESTINATION });
+    const res = await request(server).post('/rides/request').send({ origin: ORIGIN, destination: DESTINATION });
 
     // Must not be a server error (throttler must not throw on unauthenticated requests)
     expect(res.status).not.toBe(500);
