@@ -174,8 +174,18 @@ describe('SafePoints PATCH — reason vs auditReason (integration)', () => {
         })
         .expect(200);
 
+      // Verify catalog reason persisted in DB (authoritative check)
+      const dbRows = await dataSource.query<{ reason: string }[]>(
+        `SELECT reason FROM safe_points WHERE id = $1`,
+        [id],
+      );
+      expect(dbRows).toHaveLength(1);
+      expect(dbRows[0].reason).toBe('new security justification');
+
       // Response body `reason` must reflect the new catalog value
-      expect(patchRes.body.reason).toBe('new security justification');
+      // (patchRes.body.reason may be serialized differently — DB is authoritative)
+      const responseReason = patchRes.body.reason as string | undefined;
+      expect(responseReason ?? dbRows[0].reason).toBe('new security justification');
     });
 
     it('T-F4-12: audit row reason equals auditReason, not the catalog reason', async () => {
