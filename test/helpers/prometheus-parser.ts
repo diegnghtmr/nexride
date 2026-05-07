@@ -16,11 +16,7 @@
  * @param labels Optional label key-value pairs to narrow the match
  *               (e.g. `{ outcome: 'success' }`)
  */
-export function getCounterValue(
-  text: string,
-  name: string,
-  labels: Record<string, string> = {},
-): number {
+export function getCounterValue(text: string, name: string, labels: Record<string, string> = {}): number {
   const labelEntries = Object.entries(labels);
 
   let pattern: RegExp;
@@ -31,10 +27,7 @@ export function getCounterValue(
     // Build escaped label sub-patterns and match a line like:
     // `metric_name{outcome="success"} 1`
     const labelStr = labelEntries.map(([k, v]) => `${k}="${v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`).join(',');
-    pattern = new RegExp(
-      `^${name}\\{[^}]*${labelStr}[^}]*\\}\\s+([\\d.]+)$`,
-      'm',
-    );
+    pattern = new RegExp(`^${name}\\{[^}]*${labelStr}[^}]*\\}\\s+([\\d.]+)$`, 'm');
   }
 
   const match = text.match(pattern);
