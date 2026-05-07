@@ -165,6 +165,29 @@ DISTANCE_FAULT_INJECTION_RATE=0
 
 ---
 
+## Ejecutando verificaciones de arquitectura localmente
+
+`npm run arch:check` requiere **Node 20** (depcruise v16.4.0 no es compatible con Node ≥22). Detalles en [`docs/adr/ADR-009-arch-check-node-compat.md`](./docs/adr/ADR-009-arch-check-node-compat.md).
+
+**Opción A — nvm (recomendado, más rápido):**
+
+```bash
+nvm use 20
+npm run arch:check
+```
+
+**Opción B — Docker (sin nvm):**
+
+```bash
+npm run arch:check:docker
+```
+
+Ejecuta depcruise dentro de un contenedor `node:20-alpine` con el directorio de trabajo montado. Requiere Docker instalado.
+
+En CI el job `architecture-rules` usa `node-version: 20` y es la fuente de verdad para toda PR.
+
+---
+
 ## Comandos
 
 ```bash
@@ -185,6 +208,7 @@ npm run test:performance    # k6 smoke test (requiere k6 instalado)
 
 # Arquitectura
 npm run arch:check          # dependency-cruiser → 0 violaciones (Node 20)
+npm run arch:check:docker   # ídem via Docker node:20-alpine (sin nvm)
 
 # Build y OpenAPI
 npm run build               # nest build → dist/

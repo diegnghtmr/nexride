@@ -22,6 +22,8 @@ jobs:
         run: bash scripts/verify-doc-paths.sh
       - name: Verify doc consistency
         run: bash scripts/verify-doc-consistency.sh
+      - name: Verify env example
+        run: npm run verify:env
 
   architecture-rules:
     runs-on: ubuntu-latest
