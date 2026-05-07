@@ -249,6 +249,51 @@ describe('ScoringEngine', () => {
     expect(result.walkingMeters).toBeGreaterThan(0);
   });
 
+  // T-001 RED · F4 · distant vehicle (distanceFromOriginM=50000) expects reduced energyScore
+  it('reduces energyScore when vehicle is 50km from pickup (distanceFromOriginM=50000)', async () => {
+    const cfg = makeConfig(); // minimumReservePct = 0.15 → factor = 1.15
+    const provider = makeDistanceProvider(0);
+    const engine = new ScoringEngine(provider, cfg);
+
+    const vehicle = makeVehicle({
+      autonomyKm: 30,
+      distanceFromOriginM: 50_000, // 50 km to pickup
+    });
+    const tripDistanceKm = 5;
+
+    const result = await engine.score({
+      origin,
+      vehicle,
+      safePoint: null,
+      tripDistanceKm,
+      zoneFactor: 0.5,
+    });
+
+    // Old formula (wrong): clamp01(30 / (5 * 1.15)) ≈ 1.0 (clamped)
+    // New formula (correct): clamp01(30 / ((5 + 50) * 1.15)) ≈ 0.474
+    const vehicleToPickupKm = 50_000 / 1000; // 50km
+    const totalDistanceKm = tripDistanceKm + vehicleToPickupKm; // 55km
+    const reserveFactor = 1 + cfg.fleet.minimumReservePct;
+    const expectedEnergy = Math.min(1, 30 / (totalDistanceKm * reserveFactor));
+    expect(result.energy).toBeCloseTo(expectedEnergy, 4);
+    expect(result.energy).toBeLessThan(0.6); // definitely not ~1.0
+  });
+
+  // T-001b: Zero pickup distance preserves old formula
+  it('degenerates to old formula when distanceFromOriginM=0', async () => {
+    const cfg = makeConfig();
+    const provider = makeDistanceProvider(0);
+    const engine = new ScoringEngine(provider, cfg);
+
+    const vehicle = makeVehicle({ autonomyKm: 100, distanceFromOriginM: 0 });
+    const tripDistanceKm = 10;
+    const reserveFactor = 1 + cfg.fleet.minimumReservePct;
+    const expectedEnergy = Math.min(1, 100 / (tripDistanceKm * reserveFactor));
+
+    const result = await engine.score({ origin, vehicle, safePoint: null, tripDistanceKm, zoneFactor: 0.5 });
+    expect(result.energy).toBeCloseTo(expectedEnergy, 6);
+  });
+
   // Test: walkingMeters=0 when no safe point
   it('returns walkingMeters=0 when no safe point provided', async () => {
     const cfg = makeConfig();
