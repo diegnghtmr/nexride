@@ -129,15 +129,31 @@ describe('DecisionMaker', () => {
     expect(result.primary.safePointId).toBe('SP-001');
   });
 
-  // Test: walking exactly 120m → no suggestion (exclusive upper boundary per spec)
-  it('does not suggest when walkingMeters is exactly 120 (exclusive upper boundary)', () => {
+  // T-F6-01 — walking exactly 120m → suggestion VALID (inclusive upper boundary matching ST_DWithin)
+  it('suggests when walkingMeters is exactly 120 (inclusive upper boundary matching ST_DWithin)', () => {
     const maker = new DecisionMaker(defaultCfg);
     const originalCombo = makeCombo({ vehicleId: 'VH-001', safePointId: null, safety: 0.3 });
     const suggestedCombo = makeCombo({
       vehicleId: 'VH-001',
       safePointId: 'SP-001',
       safety: 0.345, // exactly 15% improvement
-      walkingMeters: 120, // exactly at limit — per spec: must be < 120 (< safePointRadiusM)
+      walkingMeters: 120, // exactly at limit — per spec: must be <= 120 (matches ST_DWithin inclusive)
+      total: 0.56,
+    });
+    const result = maker.decide([originalCombo, suggestedCombo]);
+    expect(result.suggestion).toBeDefined();
+    expect(result.suggestion!.walkingMeters).toBe(120);
+  });
+
+  // T-F6-02 — walking 120.001m → no suggestion (one meter over boundary, still rejected)
+  it('does not suggest when walkingMeters is 120.001 (just over inclusive boundary)', () => {
+    const maker = new DecisionMaker(defaultCfg);
+    const originalCombo = makeCombo({ vehicleId: 'VH-001', safePointId: null, safety: 0.3 });
+    const suggestedCombo = makeCombo({
+      vehicleId: 'VH-001',
+      safePointId: 'SP-001',
+      safety: 0.345, // exactly 15% improvement
+      walkingMeters: 120.001, // just over the inclusive limit
       total: 0.56,
     });
     const result = maker.decide([originalCombo, suggestedCombo]);
