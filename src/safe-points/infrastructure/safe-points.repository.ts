@@ -100,6 +100,10 @@ export class SafePointsRepository {
       setClauses.push(`location = ST_GeographyFromText($${paramIdx++})`);
       params.push(this.toWKT(input.location));
     }
+    if (input.reason !== undefined) {
+      setClauses.push(`reason = $${paramIdx++}`);
+      params.push(input.reason);
+    }
 
     const rows = await runner.query<
       Array<{
