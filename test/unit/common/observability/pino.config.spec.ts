@@ -97,7 +97,7 @@ describe('buildPinoConfig()', () => {
     // Request without optional fields (pre-confirm, trip_id may be null)
     const props = customProps({});
 
-    expect(props['module']).toBe('unknown');
+    expect(props['module']).toBe('http');
     expect(props['request_id']).toBeNull();
     expect(props['trip_id']).toBeNull();
     expect(props['user_id']).toBeNull();
