@@ -111,6 +111,28 @@ describe('CandidateFilter', () => {
     });
   });
 
+  describe('autonomy threshold includes vehicle-to-pickup distance (F2)', () => {
+    // autonomyKm=115, distanceFromOriginM=5000 (5km to pickup), trip=100km, reserve=15%
+    // Correct threshold: (100 + 5) * 1.15 = 120.75 > 115 → REJECTED
+    it('rejects vehicle when trip + vehicle-to-pickup distance together exceed autonomy (F2)', () => {
+      const vehicle = new VehicleCandidate({
+        id: 'VH-F2',
+        location: GeoPoint.of(4.65, -74.05),
+        batteryPct: 75,
+        autonomyKm: 115,
+        eligibility: 'eligible',
+        state: 'available',
+        telemetryAt: NOW,
+        distanceFromOriginM: 5000,
+      });
+      const filter = new CandidateFilter(cfg, () => NOW);
+      const { passed, rejections } = filter.filter([vehicle], 100);
+
+      expect(passed).toHaveLength(0);
+      expect(rejections[0].reason).toBe('insufficient_battery');
+    });
+  });
+
   describe('mixed batch', () => {
     it('correctly partitions a mixed batch of 4 vehicles', () => {
       const good = makeVehicle({ id: 'VH-good', autonomyKm: 200, telemetryAt: NOW });
