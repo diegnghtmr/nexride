@@ -143,4 +143,13 @@ describe('buildPinoConfig()', () => {
     const pinoHttp = config.pinoHttp as Record<string, unknown>;
     expect(pinoHttp['transport']).toBeUndefined();
   });
+
+  // Judgment 15° F2: the doc contract (header comment + W-7) declares 'message'
+  // as a required log field, but Pino emits 'msg' by default. messageKey:'message'
+  // renames it so the contract holds.
+  it("sets messageKey:'message' to honour the documented log-field contract", () => {
+    const config = buildPinoConfig();
+    const pinoHttp = config.pinoHttp as Record<string, unknown>;
+    expect(pinoHttp['messageKey']).toBe('message');
+  });
 });
