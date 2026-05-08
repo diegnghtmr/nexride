@@ -31,7 +31,7 @@
 | TRD §6.7 | RTF-28 | Implementado | `src/trip/infrastructure/trip.entity.ts`, `src/dispatch/application/confirm-dispatch.use-case.ts` | `test/integration/rides/rides.confirm.spec.ts` |
 | TRD §6.8 | RTF-29..30 | Fuera de Alcance — Notificaciones/Loyalty | — | — |
 | TRD §6.9 | RTF-31 | Implementado | `src/analytics/handlers/dispatch.handler.ts` | `test/integration/rides/rides.confirm.spec.ts` |
-| TRD §6.9 | RTF-32 | Implementado | `src/analytics/handlers/dispatch.handler.ts` | `test/integration/rides/rides.confirm.spec.ts` |
+| TRD §6.9 | RTF-32 | Parcial — scaffolding wire-only (`dispatch.cancelled` sin emit productivo, deferred a RTF-26 post-MVP per ADR-010; históricamente Implementado en v0.1.11..v0.1.12-mvp, reclasificado en v0.1.13-mvp) | `src/analytics/handlers/dispatch.handler.ts`, `src/common/events/event-names.ts` | `test/integration/rides/rides.confirm.spec.ts`, `test/integration/rides/cancel-dispatch.spec.ts` |
 | TRD §6.10 | RTF-33..35 | Fuera de Alcance — Ops panel | — | — |
 
 ---

@@ -160,7 +160,7 @@ FLEET_TELEMETRY_STALENESS_SEC=60
 # Distance provider
 DISTANCE_CACHE_TTL_SEC=60
 DISTANCE_PROVIDER_TIMEOUT_MS=800
-DISTANCE_FAULT_INJECTION_RATE=0
+DISTANCE_INJECT_TIMEOUT=false
 ```
 
 ---
@@ -250,7 +250,7 @@ npm run migrate             # Aplica todas las migraciones pendientes
 
 ### ADR-001 — `IDistanceProvider`: Haversine stub con cache Redis y fault injection
 
-El TRD exige NFR-09 (circuito de fallback del proveedor de distancias). Sin credenciales de Google Distance Matrix en sandbox de evaluación, se implementa `HaversineDistanceProvider`: calcula distancia geoespacial + ETA a 25 km/h, cachea en Redis con TTL 60s, y acepta `DISTANCE_FAULT_INJECTION_RATE` para inyección controlada de fallos en tests. El contrato `IDistanceProvider.getEtaSeconds()` es idéntico al de un provider externo real; el swap es **un binding** en `dispatch.module.ts`.
+El TRD exige NFR-09 (circuito de fallback del proveedor de distancias). Sin credenciales de Google Distance Matrix en sandbox de evaluación, se implementa `HaversineDistanceProvider`: calcula distancia geoespacial + ETA a 25 km/h, cachea en Redis con TTL 60s, y acepta `DISTANCE_INJECT_TIMEOUT=true` para forzar un timeout determinista en tests (históricamente documentado como `DISTANCE_FAULT_INJECTION_RATE` hasta v0.1.12-mvp; alineado al flag boolean real en v0.1.13-mvp). El contrato `IDistanceProvider.getEtaSeconds()` es idéntico al de un provider externo real; el swap es **un binding** en `dispatch.module.ts`.
 
 ### ADR-002 — `IFlagProvider`: `LocalFlagProvider` sobre `ConfigService`
 
