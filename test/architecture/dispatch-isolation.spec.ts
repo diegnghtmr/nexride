@@ -35,19 +35,22 @@ function runDepcruise(extraArgs: string = ''): { stdout: string; exitCode: numbe
   }
 }
 
-describe('Architecture — Dispatch Isolation Rules', () => {
-  it('depcruise reports zero violations on the current codebase', () => {
-    // Skip if on Node >= 22 (known depcruise incompatibility with experimental vm modules)
-    const nodeMajor = parseInt(process.version.slice(1).split('.')[0], 10);
-    if (nodeMajor >= 22) {
-      console.warn(
-        `Skipping arch:check on Node ${process.version}. depcruise requires Node ≤21. ` +
-          `Run \`nvm use 20 && npm run arch:check\` for local repro, ` +
-          `or use \`npm run arch:check:docker\`. See docs/adr/ADR-009-arch-check-node-compat.md.`,
-      );
-      return;
-    }
+// Judgment 16° B2: previously these tests used a bare `return` to skip on Node ≥22,
+// which made Jest report them as PASSING with no assertions — false-green risk.
+// Now we use `it.skip` which marks them as PENDING in the report.
+const NODE_MAJOR = parseInt(process.version.slice(1).split('.')[0], 10);
+const SKIP_REASON =
+  `depcruise requires Node ≤21 (current: ${process.version}). ` +
+  `Run \`nvm use 20 && npm run arch:check\` for local repro, ` +
+  `or use \`npm run arch:check:docker\`. See docs/adr/ADR-009-arch-check-node-compat.md.`;
+const itOrSkip = NODE_MAJOR >= 22 ? it.skip : it;
 
+describe('Architecture — Dispatch Isolation Rules', () => {
+  if (NODE_MAJOR >= 22) {
+    console.warn(`[arch-isolation] PENDING on Node ${process.version} — ${SKIP_REASON}`);
+  }
+
+  itOrSkip('depcruise reports zero violations on the current codebase', () => {
     const { exitCode, stdout } = runDepcruise();
     expect(exitCode).toBe(0);
     if (exitCode !== 0) {
@@ -55,17 +58,7 @@ describe('Architecture — Dispatch Isolation Rules', () => {
     }
   });
 
-  it('depcruise detects a deliberate forbidden import (self-test)', () => {
-    const nodeMajor = parseInt(process.version.slice(1).split('.')[0], 10);
-    if (nodeMajor >= 22) {
-      console.warn(
-        `Skipping arch:check on Node ${process.version}. depcruise requires Node ≤21. ` +
-          `Run \`nvm use 20 && npm run arch:check\` for local repro, ` +
-          `or use \`npm run arch:check:docker\`. See docs/adr/ADR-009-arch-check-node-compat.md.`,
-      );
-      return;
-    }
-
+  itOrSkip('depcruise detects a deliberate forbidden import (self-test)', () => {
     // Create forbidden file: dispatch/infrastructure importing directly from fleet
     writeFileSync(
       FORBIDDEN_FILE,
