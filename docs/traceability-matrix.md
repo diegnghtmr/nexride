@@ -48,7 +48,7 @@
 | TRD §7.3 | NFR-10 | Implementado | `src/dispatch/application/confirm-dispatch.use-case.ts` | `test/integration/rides/rides.confirm.spec.ts` |
 | TRD §7.3 | NFR-11 | Fuera de Alcance — Infra producción | — | — |
 | TRD §7.4 | NFR-12..14 | Fuera de Alcance — Infra producción | — | — |
-| TRD §7.4 | NFR-15 | Implementado | `src/common/guards/rbac.guard.ts`, `src/safe-points/safe-points.controller.ts` | `test/integration/safe-points/safe-points.rbac.spec.ts` |
+| TRD §7.4 | NFR-15 | Parcial — 2 de 3 roles (`supervisor`, `administrador`); `operador` fuera del slice (panel operativo post-MVP). Históricamente `Implementado` hasta v0.1.14-mvp; reclasificado en v0.1.15-mvp para alinear con SCOPE.md y honestidad documental (residual judgment 14° F2 → 15° F1) | `src/common/guards/rbac.guard.ts`, `src/safe-points/safe-points.controller.ts` | `test/integration/safe-points/safe-points.rbac.spec.ts` |
 | TRD §7.4 | NFR-16 | Implementado | `src/safe-points/infrastructure/safe-point-audit.entity.ts` | `test/integration/safe-points/safe-points.audit.spec.ts` |
 | TRD §7.4 | NFR-17 | Implementado — `src/app.module.ts:60-86` (ThrottlerModule two named throttlers: user 100/min, ip 1000/min), `src/common/guards/configurable-throttler.guard.ts:43-50` (getTracker override: user.id ?? ip) | `test/integration/rides/throttling.spec.ts` (3 scenarios: per-user 429, per-IP 429, unauth not-500) |
 | TRD §7.5 | NFR-18 | Implementado | `src/common/observability/pino.config.ts` | Logs JSON visibles en integration tests vía nestjs-pino |
