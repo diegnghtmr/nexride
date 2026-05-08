@@ -40,7 +40,7 @@
 
 | TRD Ref | ID | Estado | Evidencia código | Evidencia prueba |
 |---|---|---|---|---|
-| TRD §7.1 | NFR-01 | Implementado | `test/performance/rides-request.k6.js` | CI job `performance-smoke` |
+| TRD §7.1 | NFR-01 | Implementado — thresholds; perfil divergente documentado (smoke 5VU×30s ≠ 20 req/min sostenidas; ver SCOPE.md y ADR-004 histórico). Históricamente `Implementado` plano hasta v0.1.16-mvp; matizado en v0.1.17-mvp para alinear con SCOPE matiz desde v0.1.15-mvp (residual judgment 16° B6) | `test/performance/rides-request.k6.js` | CI job `performance-smoke` |
 | TRD §7.1 | NFR-02..04 | Fuera de Alcance — Infra producción | — | — |
 | TRD §7.2 | NFR-05..07 | Fuera de Alcance — Escala producción | — | — |
 | TRD §7.3 | NFR-08 | Fuera de Alcance — SLA infra producción | — | — |
