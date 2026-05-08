@@ -32,11 +32,13 @@ export class ScoringEngine {
     private readonly cfg: DispatchConfig,
   ) {}
 
-  async score(input: ScoreInput): Promise<ScoreResult> {
+  async score(input: ScoreInput, signal?: AbortSignal): Promise<ScoreResult> {
     const { origin, vehicle, safePoint, tripDistanceKm, zoneFactor } = input;
 
-    // ETA via distance provider
-    const distResult = await this.distance.getEtaSeconds(origin, vehicle.location);
+    // Judgment 14° S3: forward AbortSignal so the provider honors pipeline
+    // cancellation (timeout/abort) instead of running to completion under a
+    // tripped signal — restores DD-02 §8 cooperative-cancellation contract.
+    const distResult = await this.distance.getEtaSeconds(origin, vehicle.location, signal);
     const etaSeconds = distResult.etaSeconds;
 
     // proximity = max(0, 1 - eta / maxEtaSeconds)

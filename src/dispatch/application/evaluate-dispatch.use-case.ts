@@ -260,7 +260,7 @@ export class EvaluateDispatchUseCase {
 
     const scoreResults = await Promise.all(
       scoringInputs.map(async (inp) => {
-        const result = await this.scoringEngine.score(inp);
+        const result = await this.scoringEngine.score(inp, signal);
         const combo: ScoredCombo = {
           vehicleId: inp.vehicle.id,
           safePointId: inp.safePoint?.id ?? null,
