@@ -183,4 +183,53 @@ describe('SafePoints Audit Trail (integration)', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].reason).toBe('Punto obsoleto');
   });
+
+  // T-F5-11-INTEGRATION — ACTIVATE audit row (F5 — v0.1.12-mvp)
+  it('T-F5-11: PATCH /:id/activate writes audit row with action=ACTIVATE', async () => {
+    // Start with an inactive safe point by creating then deactivating
+    const id = await createSafePoint();
+    await request(app.getHttpServer())
+      .patch(`/safe-points/${id}/deactivate`)
+      .set(supervisorHeaders)
+      .send({ reason: 'Desactivación previa para test' })
+      .expect(200);
+
+    // Activate it
+    const activateRes = await request(app.getHttpServer())
+      .patch(`/safe-points/${id}/activate`)
+      .set(supervisorHeaders)
+      .send({ reason: 'Reparación completada — reactivado' })
+      .expect(200);
+
+    expect(activateRes.body.status).toBe('active');
+
+    const rows = await dataSource.query<{ action: string; reason: string; changed_by: string; snapshot: unknown }[]>(
+      `SELECT action, reason, changed_by, snapshot FROM safe_point_audit WHERE safe_point_id = $1 AND action = 'ACTIVATE'`,
+      [id],
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].action).toBe('ACTIVATE');
+    expect(rows[0].reason).toBe('Reparación completada — reactivado');
+    expect(rows[0].changed_by).toBeDefined();
+    expect(rows[0].snapshot).toBeDefined();
+  });
+
+  it('T-F5-12: PATCH /:id/activate returns 400 when reason is empty', async () => {
+    const id = await createSafePoint();
+
+    await request(app.getHttpServer())
+      .patch(`/safe-points/${id}/activate`)
+      .set(supervisorHeaders)
+      .send({ reason: '' })
+      .expect(400);
+  });
+
+  it('T-F5-13: PATCH /:id/activate returns 404 for non-existent safe point', async () => {
+    await request(app.getHttpServer())
+      .patch(`/safe-points/00000000-0000-0000-0000-000000000000/activate`)
+      .set(supervisorHeaders)
+      .send({ reason: 'Test non-existent' })
+      .expect(404);
+  });
 });

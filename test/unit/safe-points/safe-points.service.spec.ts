@@ -344,10 +344,7 @@ describe('SafePointsService', () => {
       const result = await service.activate('sp-uuid-001', 'Confirmación de estado', 'supervisor-1');
 
       expect(result.status).toBe('active');
-      expect(repo.writeAudit).toHaveBeenCalledWith(
-        expect.objectContaining({ action: 'ACTIVATE' }),
-        expect.anything(),
-      );
+      expect(repo.writeAudit).toHaveBeenCalledWith(expect.objectContaining({ action: 'ACTIVATE' }), expect.anything());
     });
 
     it('T-F5-05: activate runs inside a transaction (both update and audit in same TX)', async () => {
