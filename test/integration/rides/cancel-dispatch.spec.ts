@@ -71,6 +71,21 @@ describe('dispatch.cancelled event → analytics_events row (integration, F2)', 
     await dataSource.query(`DELETE FROM analytics_events`);
   });
 
+  // Poll for eventual consistency — @OnEvent async handler + TypeORM commit
+  // may complete after a single setImmediate tick under CI load.
+  async function waitForAnalyticsRow(requestId: string, timeoutMs = 2000): Promise<void> {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const rows = await dataSource.query<{ count: string }[]>(
+        `SELECT count(*)::text AS count FROM analytics_events WHERE request_id = $1`,
+        [requestId],
+      );
+      if (Number(rows[0].count) >= 1) return;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    throw new Error(`Timed out waiting for analytics row for requestId=${requestId}`);
+  }
+
   it('T-F2-06: emitting dispatch.cancelled persists analytics_events row with correct fields', async () => {
     const payload: CancelledPayload = {
       requestId: randomUUID(),
@@ -83,9 +98,7 @@ describe('dispatch.cancelled event → analytics_events row (integration, F2)', 
 
     // Fire the event directly — no production emit site (RTF-26 post-MVP).
     eventEmitter.emit(DispatchEventName.Cancelled, payload);
-
-    // Allow the async @OnEvent handler to complete.
-    await new Promise<void>((resolve) => setImmediate(resolve));
+    await waitForAnalyticsRow(payload.requestId);
 
     const rows = await dataSource.query<{ event_name: string; request_id: string; trip_id: string; user_id: string }[]>(
       `SELECT event_name, request_id, trip_id, user_id FROM analytics_events WHERE request_id = $1`,
@@ -110,7 +123,7 @@ describe('dispatch.cancelled event → analytics_events row (integration, F2)', 
     };
 
     eventEmitter.emit(DispatchEventName.Cancelled, payload);
-    await new Promise<void>((resolve) => setImmediate(resolve));
+    await waitForAnalyticsRow(payload.requestId);
 
     const rows = await dataSource.query<{ metadata: Record<string, unknown> }[]>(
       `SELECT metadata FROM analytics_events WHERE request_id = $1`,

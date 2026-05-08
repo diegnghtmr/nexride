@@ -203,10 +203,9 @@ describe('SafePoints Audit Trail (integration)', () => {
 
     // Históricamente la PATCH response body de NestJS omite campos por la serialización
     // (gap S1 documentado en v0.1.11-mvp). Asertamos contra DB que es la fuente de verdad.
-    const statusRows = await dataSource.query<{ status: string }[]>(
-      `SELECT status FROM safe_points WHERE id = $1`,
-      [id],
-    );
+    const statusRows = await dataSource.query<{ status: string }[]>(`SELECT status FROM safe_points WHERE id = $1`, [
+      id,
+    ]);
     expect(statusRows[0].status).toBe('active');
 
     const rows = await dataSource.query<{ action: string; reason: string; changed_by: string; snapshot: unknown }[]>(
