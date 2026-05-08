@@ -71,6 +71,23 @@ export interface NoAvailabilityPayload {
   ts: string; // ISO-8601
 }
 
+/**
+ * F2 (v0.1.12-mvp) — dispatch.cancelled event payload.
+ * Scaffolding only: the emit site lives in the future cancellation use-case (RTF-26, post-MVP).
+ * Handler (DispatchAnalyticsHandler.onCancelled) persists the row via the existing persist() path.
+ *
+ * Shape mirrors CompletedPayload for {requestId, riderId, tripId} so persist() can be called identically.
+ * Typed reason enum enables analytics grouping without free-form strings.
+ */
+export interface CancelledPayload {
+  requestId: string;
+  riderId: string;
+  tripId: string;
+  reason: 'rider_cancelled' | 'driver_unavailable' | 'timeout' | 'system';
+  cancelledBy: 'rider' | 'driver' | 'system';
+  ts: string; // ISO-8601
+}
+
 export type EventPayloadMap = {
   [DispatchEventName.RequestCreated]: RequestCreatedPayload;
   [DispatchEventName.SuggestionShown]: SuggestionShownPayload;
@@ -80,6 +97,7 @@ export type EventPayloadMap = {
   [DispatchEventName.Completed]: CompletedPayload;
   [DispatchEventName.TripAssigned]: TripAssignedPayload;
   [DispatchEventName.NoAvailability]: NoAvailabilityPayload;
+  [DispatchEventName.Cancelled]: CancelledPayload;
 };
 
 export type PayloadOf<E extends DispatchEventName> = EventPayloadMap[E];
