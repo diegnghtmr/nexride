@@ -12,7 +12,9 @@ import { ScoringEngine } from './domain/services/scoring-engine';
 import { DecisionMaker } from './domain/services/decision-maker';
 import { FallbackHandler } from './domain/services/fallback-handler';
 import { DecisionRecorder } from './domain/services/decision-recorder';
-import { HaversineDistanceProvider } from './infrastructure/providers/haversine-distance.provider';
+import Redis from 'ioredis';
+import { HaversineDistanceProvider, RedisClientLike } from './infrastructure/providers/haversine-distance.provider';
+import { IoredisDistanceCacheAdapter } from './infrastructure/cache/ioredis-distance-cache.adapter';
 import { LocalFlagProvider } from './infrastructure/providers/local-flag.provider';
 import { DecisionRepository } from './infrastructure/persistence/decision.repository';
 import { DispatchDecisionEntity } from './infrastructure/persistence/dispatch-decision.entity';
@@ -54,12 +56,18 @@ export const DECISION_RECORDER = Symbol('DecisionRecorder');
       inject: [DISPATCH_METRICS],
       useFactory: (metrics: DispatchMetrics) => {
         const cfg = loadDispatchConfig(process.env);
-        const stubRedis = {
-          get: async () => null,
-          setEx: async () => 'OK',
-        };
+        // Judgment 14° F1: previously injected a no-op stub even in production,
+        // silently invalidating NFR-09 cache tier and DD-02 §8 (three-tier degradation).
+        // Now: real ioredis when REDIS_URL is set, stub only as test fallback.
+        const redisUrl = process.env['REDIS_URL'];
+        const cache: RedisClientLike = redisUrl
+          ? new IoredisDistanceCacheAdapter(new Redis(redisUrl, { lazyConnect: true, maxRetriesPerRequest: 3 }))
+          : {
+              get: async () => null,
+              setEx: async () => 'OK',
+            };
         // F6 REQ-FIX-V8-06: inject metrics so distanceProviderCalls counter is wired
-        return new HaversineDistanceProvider(stubRedis, cfg, metrics);
+        return new HaversineDistanceProvider(cache, cfg, metrics);
       },
     },
     {
