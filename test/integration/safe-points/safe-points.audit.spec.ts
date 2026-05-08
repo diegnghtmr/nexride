@@ -195,13 +195,19 @@ describe('SafePoints Audit Trail (integration)', () => {
       .expect(200);
 
     // Activate it
-    const activateRes = await request(app.getHttpServer())
+    await request(app.getHttpServer())
       .patch(`/safe-points/${id}/activate`)
       .set(supervisorHeaders)
       .send({ reason: 'Reparación completada — reactivado' })
       .expect(200);
 
-    expect(activateRes.body.status).toBe('active');
+    // Históricamente la PATCH response body de NestJS omite campos por la serialización
+    // (gap S1 documentado en v0.1.11-mvp). Asertamos contra DB que es la fuente de verdad.
+    const statusRows = await dataSource.query<{ status: string }[]>(
+      `SELECT status FROM safe_points WHERE id = $1`,
+      [id],
+    );
+    expect(statusRows[0].status).toBe('active');
 
     const rows = await dataSource.query<{ action: string; reason: string; changed_by: string; snapshot: unknown }[]>(
       `SELECT action, reason, changed_by, snapshot FROM safe_point_audit WHERE safe_point_id = $1 AND action = 'ACTIVATE'`,

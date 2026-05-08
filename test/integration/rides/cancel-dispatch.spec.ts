@@ -18,6 +18,7 @@ import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers
 import { RedisContainer, StartedRedisContainer } from '@testcontainers/redis';
 import { DataSource } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { randomUUID } from 'crypto';
 import { AppModule } from '../../../src/app.module';
 import { DomainExceptionFilter } from '../../../src/common/filters/domain-exception.filter';
 import { DispatchEventName } from '../../../src/common/events/event-names';
@@ -72,9 +73,9 @@ describe('dispatch.cancelled event → analytics_events row (integration, F2)', 
 
   it('T-F2-06: emitting dispatch.cancelled persists analytics_events row with correct fields', async () => {
     const payload: CancelledPayload = {
-      requestId: 'req-cancel-int-001',
-      riderId: 'rider-cancel-int-001',
-      tripId: 'trip-cancel-int-001',
+      requestId: randomUUID(),
+      riderId: randomUUID(),
+      tripId: randomUUID(),
       reason: 'rider_cancelled',
       cancelledBy: 'rider',
       ts: new Date().toISOString(),
@@ -100,9 +101,9 @@ describe('dispatch.cancelled event → analytics_events row (integration, F2)', 
 
   it('T-F2-07: analytics row metadata contains reason and cancelledBy fields', async () => {
     const payload: CancelledPayload = {
-      requestId: 'req-cancel-int-002',
-      riderId: 'rider-cancel-int-002',
-      tripId: 'trip-cancel-int-002',
+      requestId: randomUUID(),
+      riderId: randomUUID(),
+      tripId: randomUUID(),
       reason: 'timeout',
       cancelledBy: 'system',
       ts: new Date().toISOString(),
