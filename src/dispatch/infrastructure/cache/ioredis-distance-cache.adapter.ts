@@ -1,16 +1,18 @@
+import type { OnModuleDestroy } from '@nestjs/common';
 import type Redis from 'ioredis';
 import type { RedisClientLike } from '../providers/haversine-distance.provider';
 
 /**
  * IoredisDistanceCacheAdapter — wraps ioredis to satisfy RedisClientLike.
  *
- * Judgment 14° F1: dispatch.module.ts previously injected a no-op stub
- * (`{ get: ()=>null, setEx: ()=>'OK' }`) for the distance cache, which
- * silently invalidated NFR-09 cache tier and DD-02 §8 (three degradation
- * levels). This adapter wires the existing ioredis dependency into the
- * provider so cache hits are real in production.
+ * Judgment 14° F1: replaces the no-op stub previously injected into
+ * HaversineDistanceProvider, restoring NFR-09 cache tier and DD-02 §8.
+ *
+ * Judgment 15° F4: implements OnModuleDestroy so the underlying ioredis
+ * client is closed on shutdown / hot-reload — previously the connection
+ * leaked because the factory created the client without lifecycle.
  */
-export class IoredisDistanceCacheAdapter implements RedisClientLike {
+export class IoredisDistanceCacheAdapter implements RedisClientLike, OnModuleDestroy {
   constructor(private readonly client: Redis) {}
 
   async get(key: string): Promise<string | null> {
@@ -19,5 +21,9 @@ export class IoredisDistanceCacheAdapter implements RedisClientLike {
 
   async setEx(key: string, ttlSec: number, value: string): Promise<unknown> {
     return this.client.setex(key, ttlSec, value);
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    await this.client.quit();
   }
 }
