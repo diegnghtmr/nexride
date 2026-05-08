@@ -1,8 +1,8 @@
 # Rubric Cross-Check — NexRide MVP
 
 Generated: 2026-05-05 (refreshed: 2026-05-07)
-Commit: HEAD on main (tag v0.1.13-mvp; históricamente v0.1.12-mvp / v0.1.11-mvp)
-CI Run: see v0.1.13-mvp CI run on main (7/7 green; históricamente v0.1.12-mvp 7/7 green)
+Commit: HEAD on main (tag v0.1.14-mvp; históricamente v0.1.13-mvp / v0.1.12-mvp / v0.1.11-mvp)
+CI Run: see v0.1.14-mvp CI run on main (7/7 green; históricamente v0.1.13-mvp 7/7 green)
 Fuente: `docs/8. 📄 Guía del estudiante – Código + Pruebas + CI.pdf`
 
 ## Resumen
@@ -52,7 +52,7 @@ Veredicto: **READY TO SUBMIT** — **NFR-21 parcial** (OpenTelemetry SDK instala
 
 | # | Criterio rúbrica | Estado | Evidencia | Nota |
 |---|------------------|--------|-----------|------|
-| CI1 | Completitud del pipeline: build + test + análisis estático automáticos en cada push/PR; fallos distinguibles por tipo | Completo | `ci.yml:3-7` triggers automáticos. 7 jobs separados con nombres distintos (lint-typecheck, architecture-rules, unit-tests, integration-tests, performance-smoke, security-static, build-openapi) — cada fallo identifica la dimensión. Build incluido en `build-openapi` (`ci.yml:218`). Análisis estático: ESLint + tsc + dependency-cruiser + npm audit + gitleaks. `scripts/verify-doc-paths.sh` y `scripts/verify-doc-consistency.sh` wired como steps en lint-typecheck. | v0.1.13-mvp: 7/7 verde (CI run on main, tag v0.1.13-mvp; históricamente v0.1.12-mvp también 7/7 verde). |
+| CI1 | Completitud del pipeline: build + test + análisis estático automáticos en cada push/PR; fallos distinguibles por tipo | Completo | `ci.yml:3-7` triggers automáticos. 7 jobs separados con nombres distintos (lint-typecheck, architecture-rules, unit-tests, integration-tests, performance-smoke, security-static, build-openapi) — cada fallo identifica la dimensión. Build incluido en `build-openapi` (`ci.yml:218`). Análisis estático: ESLint + tsc + dependency-cruiser + npm audit + gitleaks. `scripts/verify-doc-paths.sh` y `scripts/verify-doc-consistency.sh` wired como steps en lint-typecheck. | v0.1.14-mvp: 7/7 verde (CI run on main, tag v0.1.14-mvp; históricamente v0.1.13-mvp y v0.1.12-mvp también 7/7 verde). |
 | CI2 | Quality gates y criterios automatizados: ≥1 threshold real que bloquea merge; criterios cuantificables del TRD codificados; pipeline reproducible | Completo (100%) | Gates bloqueantes: ESLint 0 errores; tsc 0 errores; cobertura ≥85%/≥80% (`ci.yml:43-46`); `depcruise` 0 violaciones (`ci.yml:31`); k6 `p95<800ms` y `p99<1200ms` (`test/performance/rides-request.k6.js` thresholds, alineados NFR-01); `npm audit --audit-level=high --omit=dev` 0 highs; gitleaks 0 secretos; `openapi.json` debe generarse. Reproducibilidad: `npm run ci:local` ejecuta los jobs **bloqueantes** del pipeline localmente — lint, typecheck, doc-paths, doc-consistency, verify:env, arch:check, test:cov, test:integration, audit, gitleaks (`scripts/ci-local.sh`). `performance-smoke` (k6 + Docker) y `build-openapi` (DB live) quedan delegados a CI por requisitos de infra; el script lo declara explícitamente en su header `INTENTIONALLY EXCLUDED`. Históricamente hasta v0.1.12-mvp esta celda decía "ejecuta el pipeline localmente" sin matiz; matizado en v0.1.13-mvp (residual F3). Variances documentadas en `SCOPE.md §5` (ADR-004 histórico). Security gate (gitleaks + npm audit) documentado en ADR-007; ADR-006 superseded. | No hay thresholds vacíos: la cobertura genera fallo real si baja. |
 
 ---
