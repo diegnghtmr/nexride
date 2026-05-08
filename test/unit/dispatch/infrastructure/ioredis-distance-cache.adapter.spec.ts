@@ -10,6 +10,7 @@ import { IoredisDistanceCacheAdapter } from '../../../../src/dispatch/infrastruc
 interface FakeIoredis {
   get: jest.Mock<Promise<string | null>, [string]>;
   setex: jest.Mock<Promise<'OK'>, [string, number, string]>;
+  quit: jest.Mock<Promise<'OK'>, []>;
 }
 
 describe('IoredisDistanceCacheAdapter', () => {
@@ -20,6 +21,7 @@ describe('IoredisDistanceCacheAdapter', () => {
     fake = {
       get: jest.fn().mockResolvedValue(null),
       setex: jest.fn().mockResolvedValue('OK'),
+      quit: jest.fn().mockResolvedValue('OK'),
     };
     adapter = new IoredisDistanceCacheAdapter(
       fake as unknown as ConstructorParameters<typeof IoredisDistanceCacheAdapter>[0],
@@ -41,5 +43,13 @@ describe('IoredisDistanceCacheAdapter', () => {
   it('forwards setEx(key, ttlSec, value) to ioredis.setex preserving TTL', async () => {
     await adapter.setEx('distance:k', 60, '{"etaSeconds":99,"distanceM":700}');
     expect(fake.setex).toHaveBeenCalledWith('distance:k', 60, '{"etaSeconds":99,"distanceM":700}');
+  });
+
+  // Judgment 15° F4: IoredisDistanceCacheAdapter must close its connection on
+  // module destroy; previously the factory in dispatch.module.ts created the
+  // ioredis client without lifecycle, leaking connections on shutdown/hot-reload.
+  it('closes the underlying ioredis client on onModuleDestroy', async () => {
+    await adapter.onModuleDestroy();
+    expect(fake.quit).toHaveBeenCalledTimes(1);
   });
 });
