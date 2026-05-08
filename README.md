@@ -17,7 +17,7 @@ Este repositorio contiene el **vertical slice backend completo**: evaluación de
 | Gestión de puntos seguros (`/safe-points`) | Implementado | RTF-23..25, SP-01..03 |
 | Flota read-side (Redis) | Implementado | RTF-14..15 |
 | Trip mínimo (`requested → assigned`) | Parcial | RTF-26..28 |
-| Analítica de eventos del flujo | Implementado | RTF-31..32 |
+| Analítica de eventos del flujo | Implementado · RTF-31 / Parcial · RTF-32 (`dispatch.cancelled` scaffolding wire-only — históricamente "Implementado" hasta v0.1.13-mvp; reclasificado en v0.1.14-mvp por residual v12 F1) | RTF-31..32 |
 | Observabilidad — Rate limiting (NFR-17) | Implementado | NFR-17 |
 | Observabilidad — Logs estructurados pino (NFR-18) | Implementado | NFR-18 |
 | Observabilidad — Métricas Prometheus prom-client (NFR-19) | Implementado | NFR-19 |
