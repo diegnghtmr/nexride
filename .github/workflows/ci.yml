@@ -45,9 +45,11 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: >
-          npm run test:unit -- --coverage
-          --coverageThreshold='{"global":{"statements":85,"branches":80}}'
+      # Per-path thresholds live in jest.unit.config.cjs (Judgment 16° B1: application/
+      # use-cases included with their own threshold; the previous global override here
+      # collapsed all per-path config into a single global gate that misclassified the
+      # use-case branches as failures).
+      - run: npm run test:cov
 
   integration-tests:
     runs-on: ubuntu-latest
