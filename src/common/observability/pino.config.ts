@@ -10,6 +10,9 @@ export function buildPinoConfig(): Params {
   return {
     pinoHttp: {
       level: process.env['LOG_LEVEL'] ?? 'info',
+      // Judgment 15° F2: rename Pino's default 'msg' field to 'message' to honour
+      // the documented log-field contract (REQ-LOG header above).
+      messageKey: 'message',
       transport:
         process.env['NODE_ENV'] !== 'production' ? { target: 'pino-pretty', options: { singleLine: true } } : undefined,
       formatters: {
