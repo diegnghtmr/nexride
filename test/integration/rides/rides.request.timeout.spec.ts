@@ -51,7 +51,7 @@ describe('POST /rides/request — timeout → fallback (F1 AbortSignal guard)', 
     }).compile();
 
     app = moduleRef.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
     app.useGlobalFilters(new DomainExceptionFilter());
     await app.init();
 

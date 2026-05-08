@@ -51,7 +51,7 @@ describe('dispatch.cancelled event → analytics_events row (integration, F2)', 
     }).compile();
 
     app = moduleRef.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
     app.useGlobalFilters(new DomainExceptionFilter());
     await app.init();
 
