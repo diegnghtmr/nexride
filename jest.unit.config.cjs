@@ -21,6 +21,7 @@ module.exports = {
   coverageDirectory: 'coverage/unit',
   collectCoverageFrom: [
     'src/dispatch/domain/**/*.ts',
+    'src/dispatch/application/**/*.ts',
     'src/dispatch/infrastructure/providers/**/*.ts',
     'src/safe-points/safe-points.service.ts',
     '!src/**/*.module.ts',
@@ -29,6 +30,12 @@ module.exports = {
   ],
   coverageThreshold: {
     'src/dispatch/domain/**/*.ts': { statements: 85, branches: 80 },
+    // Judgment 16° B1: application orchestrators included in the gate. Statements
+    // gate at 80 (vs 85 for domain) and branches at 40 (vs 80) because abort /
+    // timeout / fallback / suggestion-event paths are dominantly integration-tested
+    // (rides.request.spec.ts + rides.confirm.spec.ts), and duplicating them as
+    // unit tests would add maintenance cost without catching real regressions.
+    'src/dispatch/application/**/*.ts': { statements: 80, branches: 40 },
     'src/dispatch/infrastructure/providers/**/*.ts': { statements: 85, branches: 80 },
     'src/safe-points/safe-points.service.ts': { statements: 85, branches: 80 },
   },
