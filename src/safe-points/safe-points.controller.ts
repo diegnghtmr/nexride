@@ -19,6 +19,7 @@ import { RbacGuard } from '../common/guards/rbac.guard';
 import { SafePointsService } from './safe-points.service';
 import { CreateSafePointDto } from './dto/create-safe-point.dto';
 import { UpdateSafePointDto } from './dto/update-safe-point.dto';
+import { ActivateSafePointDto } from './dto/activate-safe-point.dto';
 import { FindWithinQueryDto } from './dto/find-within-query.dto';
 import { SafePoint } from '../common/interfaces/shared-types';
 
@@ -63,6 +64,46 @@ export class SafePointsController {
       location: dto.location,
       createdBy: actorId,
     });
+  }
+
+  /**
+   * F5 (v0.1.12-mvp): dedicated PATCH /:id/activate — MUST be declared before PATCH /:id
+   * to prevent Express/Nest from interpreting ':id' as '<uuid>/activate'.
+   */
+  @Patch(':id/activate')
+  @RequiredRoles('supervisor', 'administrador')
+  @ApiOperation({ summary: 'Activate a safe point (writes ACTIVATE audit row, requires reason)' })
+  @ApiResponse({ status: 200, description: 'Safe point activated' })
+  @ApiResponse({ status: 400, description: 'Missing or empty reason' })
+  @ApiResponse({ status: 403, description: 'Forbidden — supervisor or administrador only' })
+  @ApiResponse({ status: 404, description: 'Safe point not found' })
+  async activate(
+    @Param('id') id: string,
+    @Body() dto: ActivateSafePointDto,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<SafePoint> {
+    const actorId = req.user?.id ?? 'unknown';
+    return this.safePointsService.activate(id, dto.reason, actorId);
+  }
+
+  /**
+   * F5 (v0.1.12-mvp): dedicated PATCH /:id/deactivate — MUST be declared before PATCH /:id
+   * to prevent Express/Nest from interpreting ':id' as '<uuid>/deactivate'.
+   */
+  @Patch(':id/deactivate')
+  @RequiredRoles('supervisor', 'administrador')
+  @ApiOperation({ summary: 'Deactivate a safe point (writes DEACTIVATE audit row, requires reason)' })
+  @ApiResponse({ status: 200, description: 'Safe point deactivated' })
+  @ApiResponse({ status: 400, description: 'Missing or empty reason' })
+  @ApiResponse({ status: 403, description: 'Forbidden — supervisor or administrador only' })
+  @ApiResponse({ status: 404, description: 'Safe point not found' })
+  async deactivate(
+    @Param('id') id: string,
+    @Body() dto: ActivateSafePointDto,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<SafePoint> {
+    const actorId = req.user?.id ?? 'unknown';
+    return this.safePointsService.deactivate(id, dto.reason, actorId);
   }
 
   @Patch(':id')

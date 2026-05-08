@@ -51,6 +51,7 @@ describe('CandidateGenerator', () => {
       findById: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      activate: jest.fn(),
       deactivate: jest.fn(),
       delete: jest.fn(),
     };
@@ -78,6 +79,7 @@ describe('CandidateGenerator', () => {
       findById: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      activate: jest.fn(),
       deactivate: jest.fn(),
       delete: jest.fn(),
     };
@@ -101,6 +103,7 @@ describe('CandidateGenerator', () => {
       findById: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      activate: jest.fn(),
       deactivate: jest.fn(),
       delete: jest.fn(),
     };
@@ -120,6 +123,7 @@ describe('CandidateGenerator', () => {
       findById: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      activate: jest.fn(),
       deactivate: jest.fn(),
       delete: jest.fn(),
     };
@@ -139,6 +143,7 @@ describe('CandidateGenerator', () => {
       findById: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      activate: jest.fn(),
       deactivate: jest.fn(),
       delete: jest.fn(),
     };
@@ -157,6 +162,7 @@ describe('CandidateGenerator', () => {
       findById: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      activate: jest.fn(),
       deactivate: jest.fn(),
       delete: jest.fn(),
     };
