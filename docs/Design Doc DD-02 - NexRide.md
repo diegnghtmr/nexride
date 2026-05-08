@@ -30,7 +30,7 @@
 
 Este documento detalla el diseño técnico del motor de despacho contextual, el componente central de diferenciación de NexRide. El motor reemplaza la lógica convencional de "vehículo más cercano" por un sistema de evaluación multifactorial que combina viabilidad energética (batería), elegibilidad del conductor, seguridad contextual del punto de abordaje y continuidad de la flota.
 
-El diseño propone un pipeline de tres fases (candidatura → filtrado → scoring) que se ejecuta dentro del módulo Dispatch del monolito modular. La evaluación produce una combinación óptima de vehículo y punto de abordaje, junto con una sugerencia opcional de punto seguro cuando la mejora supera un umbral configurable. Todos los parámetros (pesos, umbrales, radios) son ajustables vía feature flags sin necesidad de redespliegue.
+El diseño propone un pipeline de tres fases (candidatura → filtrado → scoring) que se ejecuta dentro del módulo Dispatch del monolito modular. La evaluación produce una combinación óptima de vehículo y punto de abordaje, junto con una sugerencia opcional de punto seguro cuando la mejora supera un umbral configurable. Todos los parámetros (pesos, umbrales, radios) son ajustables vía feature flags configurados por env (reinicio requerido en MVP; el contrato `IFlagProvider` permite swap a Unleash/LaunchDarkly post-MVP para hot-reload).
 
 La decisión de despacho se persiste en dos momentos. Primero, como una decisión preliminar identificada por requestId, antes de que exista un viaje confirmado. Segundo, como la misma decisión ya asociada a tripId y a la elección final del usuario cuando el viaje se confirma.
 
