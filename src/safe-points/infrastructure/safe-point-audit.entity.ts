@@ -1,7 +1,9 @@
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
-export type AuditAction = 'CREATE' | 'UPDATE' | 'DEACTIVATE' | 'DELETE';
-// DB CHECK constraint (migration 17000000010001) still permits 'ACTIVATE'; intentionally not migrated — see docs/rubric-checklist.md F5 v9-deferred.
+// Históricamente 'ACTIVATE' se removió de la TS union en v0.1.10-mvp como deferral asimétrico;
+// restaurado en v0.1.12-mvp (rubric residuals v11, F5) ahora que existe SafePointsService.activate.
+// La DB CHECK (migration 17000000010001) siempre lo permitió → sin migración de schema.
+export type AuditAction = 'CREATE' | 'UPDATE' | 'ACTIVATE' | 'DEACTIVATE' | 'DELETE';
 
 /**
  * TypeORM entity for the `safe_point_audit` table.

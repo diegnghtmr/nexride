@@ -7,4 +7,6 @@ export enum DispatchEventName {
   Completed = 'dispatch.completed',
   TripAssigned = 'trip.assigned',
   NoAvailability = 'dispatch.no_availability',
+  // F2 (v0.1.12-mvp): scaffolding only — emit site deferred to RTF-26 post-MVP cancellation use-case.
+  Cancelled = 'dispatch.cancelled',
 }

@@ -29,6 +29,8 @@ export interface ISafePointsService {
   findById(id: string): Promise<SafePoint | null>;
   create(input: CreateSafePointInput): Promise<SafePoint>;
   update(id: string, input: UpdateSafePointInput): Promise<SafePoint>;
+  /** F5 (v0.1.12-mvp): symmetric to deactivate(); writes audit row with action='ACTIVATE'. */
+  activate(id: string, reason: string, actorId: string): Promise<SafePoint>;
   deactivate(id: string, reason: string, actorId: string): Promise<SafePoint>;
   delete(id: string, reason: string, actorId: string): Promise<void>;
 }

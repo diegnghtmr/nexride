@@ -14,9 +14,10 @@ import { SafePointsRepository } from './infrastructure/safe-points.repository';
  *
  * Wraps CRUD operations with:
  * - Mandatory reason validation (SafePointReasonRequiredError if reason is empty/missing).
- * - Audit row written for every mutating operation (CREATE, UPDATE, DELETE, DEACTIVATE).
+ * - Audit row written for every mutating operation (CREATE, UPDATE, ACTIVATE, DEACTIVATE, DELETE).
  * - All mutations (safepoint row + audit row) execute within a single TypeORM transaction
  *   via dataSource.transaction(callback), ensuring atomic commit/rollback (F8 — REQ-FIX-V8-07).
+ * - activate() added in v0.1.12-mvp (F5) symmetric to deactivate().
  */
 @Injectable()
 export class SafePointsService implements ISafePointsService {
@@ -82,6 +83,52 @@ export class SafePointsService implements ISafePointsService {
           action: 'UPDATE',
           reason: auditReason,
           changedBy: input.updatedBy,
+          snapshot: { before: existing, after: updated },
+        },
+        manager,
+      );
+
+      return updated;
+    });
+  }
+
+  /**
+   * F5 (v0.1.12-mvp) — symmetric to deactivate().
+   * Sets status='active' and writes an ACTIVATE audit row in a single transaction.
+   * Idempotent: activating an already-active point still writes the audit row as evidence.
+   * DB CHECK constraint (migration 17000000010001) already permits 'ACTIVATE' → no migration needed.
+   */
+  async activate(id: string, reason: string, actorId: string): Promise<SafePoint> {
+    if (!reason || reason.trim().length === 0) {
+      throw new SafePointReasonRequiredError('reason is required when activating a safe point', { field: 'reason' });
+    }
+
+    const existing = await this.repo.findById(id);
+    if (!existing) {
+      throw new NotFoundException(`SafePoint ${id} not found`);
+    }
+
+    return this.dataSource.transaction(async (manager) => {
+      const updated = await this.repo.update(
+        id,
+        {
+          status: 'active',
+          auditReason: reason,
+          updatedBy: actorId,
+        },
+        manager,
+      );
+
+      if (!updated) {
+        throw new NotFoundException(`SafePoint ${id} not found after activation`);
+      }
+
+      await this.repo.writeAudit(
+        {
+          safePointId: id,
+          action: 'ACTIVATE',
+          reason,
+          changedBy: actorId,
           snapshot: { before: existing, after: updated },
         },
         manager,

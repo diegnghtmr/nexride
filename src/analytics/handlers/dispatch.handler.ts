@@ -14,6 +14,7 @@ import {
   CompletedPayload,
   TripAssignedPayload,
   NoAvailabilityPayload,
+  CancelledPayload,
 } from '../../common/events/event-payloads';
 import { DISPATCH_METRICS } from '../../common/observability/observability.module';
 import { DispatchMetrics } from '../../common/observability/metrics.registry';
@@ -111,6 +112,23 @@ export class DispatchAnalyticsHandler {
       reason: payload.reason,
       ts: payload.ts,
     } as unknown as Record<string, unknown>);
+  }
+
+  /**
+   * F2 (v0.1.12-mvp) — dispatch.cancelled scaffolding.
+   * Persists an analytics row when a dispatch.cancelled event is received.
+   * The emit site lives in the future cancellation use-case (RTF-26, post-MVP).
+   * No dispatch_cancelled_total counter added per ADR-v11-04 (metrics-naming deferral).
+   */
+  @OnEvent(DispatchEventName.Cancelled, { async: true })
+  async onCancelled(payload: CancelledPayload): Promise<void> {
+    await this.persist(
+      DispatchEventName.Cancelled,
+      payload.requestId,
+      payload.tripId,
+      payload.riderId,
+      payload as unknown as Record<string, unknown>,
+    );
   }
 
   private async persist(

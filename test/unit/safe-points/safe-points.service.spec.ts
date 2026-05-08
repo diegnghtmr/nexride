@@ -287,6 +287,81 @@ describe('SafePointsService', () => {
     });
   });
 
+  // T-F5-01-RED — activate() symmetric to deactivate() (F5 — v0.1.12-mvp)
+  // These tests are RED until activate() is implemented in SafePointsService.
+  describe('activate() (T-F5-01-RED, F5 — v0.1.12-mvp)', () => {
+    it('T-F5-01: activate inactive point writes audit row with action=ACTIVATE', async () => {
+      const inactivePoint = { ...mockSafePoint, status: 'inactive' as const };
+      const activatedPoint = { ...mockSafePoint, status: 'active' as const };
+      repo.findById.mockResolvedValue(inactivePoint);
+      repo.update.mockResolvedValue(activatedPoint);
+      repo.writeAudit.mockResolvedValue(undefined);
+
+      const result = await service.activate('sp-uuid-001', 'Reparación completada', 'supervisor-1');
+
+      expect(result.status).toBe('active');
+      expect(repo.writeAudit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          safePointId: 'sp-uuid-001',
+          action: 'ACTIVATE',
+          reason: 'Reparación completada',
+          changedBy: 'supervisor-1',
+        }),
+        expect.anything(),
+      );
+      expect(repo.update).toHaveBeenCalledWith(
+        'sp-uuid-001',
+        expect.objectContaining({ status: 'active' }),
+        expect.anything(),
+      );
+    });
+
+    it('T-F5-02: activate with empty reason throws SafePointReasonRequiredError and does not call repo.update', async () => {
+      await expect(service.activate('sp-uuid-001', '', 'supervisor-1')).rejects.toBeInstanceOf(
+        SafePointReasonRequiredError,
+      );
+
+      expect(repo.update).not.toHaveBeenCalled();
+    });
+
+    it('T-F5-03: activate non-existent point throws NotFoundException', async () => {
+      const { NotFoundException } = await import('@nestjs/common');
+      repo.findById.mockResolvedValue(null);
+
+      await expect(service.activate('nonexistent', 'valid reason', 'supervisor-1')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it('T-F5-04: activate already-active point still writes audit row (idempotent)', async () => {
+      // Per spec edge case: activating an already-active safe point should succeed
+      // and still write an audit row as evidence.
+      const alreadyActive = { ...mockSafePoint, status: 'active' as const };
+      repo.findById.mockResolvedValue(alreadyActive);
+      repo.update.mockResolvedValue(alreadyActive);
+      repo.writeAudit.mockResolvedValue(undefined);
+
+      const result = await service.activate('sp-uuid-001', 'Confirmación de estado', 'supervisor-1');
+
+      expect(result.status).toBe('active');
+      expect(repo.writeAudit).toHaveBeenCalledWith(expect.objectContaining({ action: 'ACTIVATE' }), expect.anything());
+    });
+
+    it('T-F5-05: activate runs inside a transaction (both update and audit in same TX)', async () => {
+      const inactivePoint = { ...mockSafePoint, status: 'inactive' as const };
+      const activatedPoint = { ...mockSafePoint, status: 'active' as const };
+      repo.findById.mockResolvedValue(inactivePoint);
+      repo.update.mockResolvedValue(activatedPoint);
+      repo.writeAudit.mockResolvedValue(undefined);
+
+      await service.activate('sp-uuid-001', 'Reparación', 'supervisor-1');
+
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(repo.update).toHaveBeenCalledTimes(1);
+      expect(repo.writeAudit).toHaveBeenCalledTimes(1);
+    });
+  });
+
   // T-028 · RED · F8 — transactional atomicity
   describe('create() — transactional atomicity (T-028)', () => {
     it('17. when writeAudit throws QueryFailedError, the error propagates (transaction rolled back)', async () => {
