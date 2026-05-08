@@ -21,7 +21,9 @@ describe('IoredisDistanceCacheAdapter', () => {
       get: jest.fn().mockResolvedValue(null),
       setex: jest.fn().mockResolvedValue('OK'),
     };
-    adapter = new IoredisDistanceCacheAdapter(fake as unknown as ConstructorParameters<typeof IoredisDistanceCacheAdapter>[0]);
+    adapter = new IoredisDistanceCacheAdapter(
+      fake as unknown as ConstructorParameters<typeof IoredisDistanceCacheAdapter>[0],
+    );
   });
 
   it('forwards get(key) to underlying ioredis.get', async () => {
