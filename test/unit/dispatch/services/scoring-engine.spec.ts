@@ -323,4 +323,25 @@ describe('ScoringEngine', () => {
     });
     expect(result.etaSeconds).toBe(240);
   });
+
+  // Judgment 14° S3: AbortSignal must be forwarded to the distance provider so
+  // the cancel post-await is not decorative. Previously score() ignored signal
+  // entirely, leaving the provider to run to completion under a tripped pipeline.
+  it('forwards AbortSignal to the distance provider getEtaSeconds call', async () => {
+    const cfg = makeConfig();
+    const provider = makeDistanceProvider(120);
+    const engine = new ScoringEngine(provider, cfg);
+    const controller = new AbortController();
+    await engine.score(
+      {
+        origin,
+        vehicle: makeVehicle(),
+        safePoint: null,
+        tripDistanceKm: 5,
+        zoneFactor: 0.5,
+      },
+      controller.signal,
+    );
+    expect(provider.getEtaSeconds).toHaveBeenCalledWith(expect.anything(), expect.anything(), controller.signal);
+  });
 });
