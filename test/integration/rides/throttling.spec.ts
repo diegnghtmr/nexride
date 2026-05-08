@@ -72,7 +72,7 @@ describe('Two-Tier Throttling Integration (T-004)', () => {
     }).compile();
 
     app = moduleRef.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
     await app.init();
 
     dataSource = moduleRef.get<DataSource>(DataSource);

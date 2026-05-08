@@ -1,8 +1,8 @@
 # ADR-008 — Intentional CI Trigger Scope
 
 **Date:** 2026-05-06  
-**Status:** Accepted  
-**Finding:** F5 (rubric-residuals-v8 audit)
+**Status:** Amended (2026-05-08, v0.1.18-mvp) — see Amendment section  
+**Finding:** F5 (rubric-residuals-v8 audit) → reopened by judgment 17° F9 (stale citation)
 
 ---
 
@@ -62,8 +62,26 @@ only, no Testcontainers) on feature-branch pushes may be considered.
 
 ---
 
+## Amendment (v0.1.18-mvp, 2026-05-08) — judgment 17° F9 closure
+
+**The original decision is reversed.** `ci.yml` triggers on `push:` (any branch) plus `pull_request: branches: [main]`. The change happened implicitly when the repo went **public** during the v0.1.15-mvp cycle (judgment 14° v15 close-out): Actions minutes are now unlimited, so the original billing rationale (point 1) no longer applies. Points 2-4 of the original Decision are technical preferences, not constraints — and PR-time + every-push parity is strictly more signal at zero marginal cost.
+
+**Current effective behavior** (matches `ci.yml:3-7`):
+- `push:` — any branch (no filter)
+- `pull_request:` — targeting `main`
+
+**Trade-off accepted**: WIP branches now show CI red on intermediate commits. This is mitigated by:
+- Local `npm run ci:local` still expected before pushing.
+- Strict TDD pattern (RED → GREEN sequential commits) — RED commits will fail CI by design; this is now a documented expected state, not a regression.
+
+**Why amend, not supersede**: the original *intent* (cost-efficient gating) is preserved; only the cost premise changed. Future readers should understand that the trigger scope evolved with the repo's billing model, not with the project's testing philosophy.
+
+---
+
 ## References
 
-- `.github/workflows/ci.yml` — trigger definition
+- `.github/workflows/ci.yml` — trigger definition (current: lines 3-7)
 - `scripts/ci-local.sh` — local CI reproducibility wrapper
 - `SCOPE.md §5` — ADR summary table
+- Engram archive `sdd/judgment-15-residuals/archive-report` — repo public decision
+- Judgment 17° finding F9 — drove this amendment
