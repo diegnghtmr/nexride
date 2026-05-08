@@ -2,10 +2,17 @@ import { IsString, IsNumber, IsNotEmpty, Min, Max, ValidateNested, IsOptional } 
 import { Type } from 'class-transformer';
 
 class LocationDto {
+  // WGS-84 bounds — enforced at the HTTP boundary so PostGIS never sees
+  // out-of-range coordinates. Without these, lat=999 / lng=-181 would
+  // bubble up as a 5xx from the DB instead of a 400 VALIDATION_ERROR.
   @IsNumber()
+  @Min(-90)
+  @Max(90)
   lat!: number;
 
   @IsNumber()
+  @Min(-180)
+  @Max(180)
   lng!: number;
 }
 

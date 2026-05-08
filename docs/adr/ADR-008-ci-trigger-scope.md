@@ -78,10 +78,24 @@ only, no Testcontainers) on feature-branch pushes may be considered.
 
 ---
 
+## Clarification (v0.1.19-mvp, 2026-05-08) — judgment 18° F1
+
+**`release.yml` is NOT a second CI/CD pipeline.** DD-01 §52 and TRD §116 commit to a "pipeline único de CI/CD" — that commitment refers to the **build + test + arch + security gates** which all live in `ci.yml`. The `release.yml` workflow is a **pure publisher**: triggered only by `v*-mvp` tag pushes, it runs `softprops/action-gh-release@v2` to render GitHub Release notes from the git tag. It does not compile, lint, test, scan, or deploy. It executes nothing that gates merge.
+
+Anyone reviewing the repo should understand:
+- `ci.yml` — quality gate (7 jobs, blocks merge via branch protection).
+- `release.yml` — release-notes publisher (no validation, no merge influence).
+
+If a future change introduces real deploy logic into `release.yml`, this ADR must be revisited and DD-01 §52 / TRD §116 amended explicitly.
+
+---
+
 ## References
 
 - `.github/workflows/ci.yml` — trigger definition (current: lines 3-7)
+- `.github/workflows/release.yml` — publisher workflow (post-tag, non-blocking)
 - `scripts/ci-local.sh` — local CI reproducibility wrapper
 - `SCOPE.md §5` — ADR summary table
 - Engram archive `sdd/judgment-15-residuals/archive-report` — repo public decision
-- Judgment 17° finding F9 — drove this amendment
+- Judgment 17° finding F9 — drove the amendment above
+- Judgment 18° finding F1 — drove the clarification above
