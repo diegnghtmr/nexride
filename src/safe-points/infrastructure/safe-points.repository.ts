@@ -135,7 +135,9 @@ export class SafePointsRepository {
                  ST_Y(location::geometry) AS lat, ST_X(location::geometry) AS lng`,
       params,
     )) as UpdateRow[] | [UpdateRow[], number];
-    const rows: UpdateRow[] = Array.isArray((result as unknown[])[0]) ? (result as [UpdateRow[], number])[0] : (result as UpdateRow[]);
+    const rows: UpdateRow[] = Array.isArray((result as unknown[])[0])
+      ? (result as [UpdateRow[], number])[0]
+      : (result as UpdateRow[]);
 
     if (!rows.length) return null;
     const row = rows[0];
