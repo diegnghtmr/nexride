@@ -105,27 +105,39 @@ export class SafePointsRepository {
       params.push(input.reason);
     }
 
-    const rows = await runner.query<
-      Array<{
-        id: string;
-        name: string;
-        zone_id: string;
-        reason: string;
-        safety_score: string;
-        status: string;
-        created_at: Date;
-        updated_at: Date;
-        lat: string;
-        lng: string;
-      }>
-    >(
+    type UpdateRow = {
+      id: string;
+      name: string;
+      zone_id: string;
+      reason: string;
+      safety_score: string;
+      status: string;
+      created_at: Date;
+      updated_at: Date;
+      lat: string;
+      lng: string;
+    };
+
+    // Judgment 20° F7 / S1 closure (ADR-013): the pg driver via TypeORM's
+    // runner.query() returns DIFFERENT shapes for UPDATE...RETURNING vs.
+    // INSERT/SELECT...RETURNING:
+    //   UPDATE...RETURNING → [rowsArray, affectedCount]  (2-tuple)
+    //   INSERT/SELECT      → rowsArray                   (flat)
+    // The previous code treated the tuple as a flat array, causing rows[0]
+    // to be the whole rowsArray instead of the first row, which made every
+    // field undefined → NaN → null in the JSON response.
+    // Defend against both shapes so a future driver bump cannot regress us.
+    const result = (await runner.query(
       `UPDATE safe_points
        SET ${setClauses.join(', ')}
        WHERE id = $1
        RETURNING id, name, zone_id, reason, safety_score, status, created_at, updated_at,
                  ST_Y(location::geometry) AS lat, ST_X(location::geometry) AS lng`,
       params,
-    );
+    )) as UpdateRow[] | [UpdateRow[], number];
+    const rows: UpdateRow[] = Array.isArray((result as unknown[])[0])
+      ? (result as [UpdateRow[], number])[0]
+      : (result as UpdateRow[]);
 
     if (!rows.length) return null;
     const row = rows[0];
