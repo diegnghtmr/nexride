@@ -87,14 +87,14 @@
 
 ## DD-02 — Dispatch Design Document
 
-> **DD-02** covers the dispatch evaluation pipeline design: scoring formula, decision gate, confirmation transaction, IDistanceProvider degradation, and IFlagProvider for runtime weights. Cross-references: RTF-18..22 (scoring + decision + fallback + persistence), DE-04 (walking < 120m boundary — see SCOPE.md §4 for semantic clarification), NFR-10 (ACID confirm).
+> **DD-02** covers the dispatch evaluation pipeline design: scoring formula, decision gate, confirmation transaction, IDistanceProvider degradation, and IFlagProvider for runtime weights. Cross-references: RTF-18..22 (scoring + decision + fallback + persistence), DE-04 (walking ≤120m boundary, inclusive — see SCOPE.md §4 for semantic clarification; históricamente `<120m` exclusive hasta v0.1.11-mvp, alineado a `≤120m` inclusive en v0.1.12-mvp matching `ST_DWithin`), NFR-10 (ACID confirm).
 
 | DD-02 Ref | Decisión | Estado | Evidencia |
 |---|---|---|---|
 | DD-02 §3 | Pipeline EvaluateDispatch: candidatura → filtrado → scoring → decisión → persistencia | Implementado | `src/dispatch/application/evaluate-dispatch.use-case.ts` |
 | DD-02 §4 | Config externalizada (pesos, radios, timeouts) | Implementado | `src/common/config/dispatch.config.ts` |
 | DD-02 §5 | Fórmulas de score: proximity, energy, safety, continuity | Implementado | `src/dispatch/domain/services/scoring-engine.ts` |
-| DD-02 §6 | Suggestion gate: mejora relativa ≥15% AND caminata <120m (strictly less than per DE-04; float epsilon 1e-9) | Implementado | `src/dispatch/domain/services/decision-maker.ts` |
+| DD-02 §6 | Suggestion gate: mejora relativa ≥15% AND caminata ≤120m (inclusive, matching `ST_DWithin` per DE-04 v0.1.12-mvp; históricamente `<120m` exclusive hasta v0.1.11-mvp, residual F6 v11/F4 v12) | Implementado | `src/dispatch/domain/services/decision-maker.ts:76` |
 | DD-02 §7 | ConfirmDispatch: transacción ACID + SELECT FOR UPDATE (W-5) + eventos | Implementado | `src/dispatch/application/confirm-dispatch.use-case.ts` |
 | DD-02 §8 | IDistanceProvider con tres niveles de degradación | Implementado | `src/dispatch/infrastructure/providers/haversine-distance.provider.ts` (ADR-001) |
 | DD-02 §9 | IFlagProvider para pesos sin redeployment | Implementado | `src/dispatch/infrastructure/providers/local-flag.provider.ts` (ADR-002) |
