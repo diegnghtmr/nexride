@@ -43,11 +43,21 @@ describe('FindWithinQueryDto — query bounds', () => {
   it.each([
     ['radiusM = 0', 0],
     ['radiusM negative', -1],
-    ['radiusM above cap (120)', 121],
+    ['radiusM above cap (5000)', 5001],
     ['radiusM abusive', 99_999_999],
   ])('rejects %s', async (_label, radiusM) => {
     const dto = build({ lat: 0, lng: 0, radiusM });
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ['radiusM at default (120)', 120],
+    ['radiusM mid-range (1000)', 1000],
+    ['radiusM at cap (5000)', 5000],
+  ])('accepts %s', async (_label, radiusM) => {
+    const dto = build({ lat: 0, lng: 0, radiusM });
+    const errors = await validate(dto);
+    expect(errors).toEqual([]);
   });
 });
