@@ -35,9 +35,18 @@ export class CandidateFilter {
   }
 
   private evaluate(vehicle: VehicleCandidate, requiredKm: number, now: Date): string | null {
-    // Rule 1: operational state
+    // Rule 1: operational state — out_of_service.
     if (vehicle.state === 'out_of_service') {
       return 'out_of_service';
+    }
+
+    // Rule 1.5 (judgment 19° F4): busy vehicles must NOT be candidates.
+    // A busy vehicle is on an active trip; entering scoring would risk
+    // re-dispatching it. Parity with fallback-handler.ts which already
+    // filters by ('available' || 'in_service') — only the primary path
+    // was missing this check.
+    if (vehicle.state === 'busy') {
+      return 'busy';
     }
 
     // Rule 2: driver eligibility

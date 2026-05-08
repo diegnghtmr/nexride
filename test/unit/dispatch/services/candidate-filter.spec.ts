@@ -111,6 +111,23 @@ describe('CandidateFilter', () => {
       expect(passed).toHaveLength(0);
       expect(rejections[0].reason).toBe('out_of_service');
     });
+
+    // Judgment 19° F4 — busy vehicles must be rejected (parity with
+    // fallback-handler:31 which already filters them). Without this,
+    // a vehicle on an active trip enters scoring and could be re-dispatched.
+    it('rejects busy vehicle even with excellent battery and fresh telemetry', () => {
+      const vehicle = makeVehicle({
+        state: 'busy',
+        batteryPct: 100,
+        autonomyKm: 9999,
+        telemetryAt: NOW,
+      });
+      const filter = new CandidateFilter(cfg, () => NOW);
+      const { passed, rejections } = filter.filter([vehicle], 50);
+
+      expect(passed).toHaveLength(0);
+      expect(rejections[0].reason).toBe('busy');
+    });
   });
 
   describe('autonomy threshold includes vehicle-to-pickup distance (F2)', () => {
