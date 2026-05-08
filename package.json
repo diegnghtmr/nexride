@@ -1,6 +1,6 @@
 {
   "name": "nexride-mvp",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "description": "NexRide MVP — Dispatch vertical slice backend",
   "author": "NexRide Team",
   "private": true,
