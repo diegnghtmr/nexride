@@ -4,12 +4,14 @@
  *
  * REQ-3 (Scenarios 3.1–3.4) — F7 v0.1.10-mvp
  *
- * These tests FAIL until the counter is wired in T-005 (GREEN commit).
+ * F2 (v0.1.12-mvp): onCancelled handler persists analytics row when dispatch.cancelled event fired.
+ * T-F2-01-RED: these tests FAIL until onCancelled() is implemented (GREEN commit).
  */
 import { Registry, Counter } from 'prom-client';
 import { DispatchAnalyticsHandler } from '../../../src/analytics/handlers/dispatch.handler';
 import { DispatchEventName } from '../../../src/common/events/event-names';
 import { DispatchMetrics } from '../../../src/common/observability/metrics.registry';
+import { CancelledPayload } from '../../../src/common/events/event-payloads';
 
 /** Returns the numeric value of a Counter for a specific label set by scraping its text output. Returns 0 if absent. */
 async function getCounterValue(counter: Counter, labels: Record<string, string>): Promise<number> {
@@ -149,5 +151,106 @@ describe('DispatchAnalyticsHandler — analytics_persist_failures_total (REQ-3, 
         } as never),
       ).resolves.toBeUndefined();
     });
+  });
+});
+
+// T-F2-01-RED — dispatch.cancelled event handler (F2 — v0.1.12-mvp)
+// These tests are RED until DispatchEventName.Cancelled and onCancelled() are implemented.
+describe('DispatchAnalyticsHandler — onCancelled (F2, v0.1.12-mvp)', () => {
+  let analyticsRepo: { create: jest.Mock; save: jest.Mock };
+  let mockLogger: { warn: jest.Mock; error: jest.Mock; log: jest.Mock; setContext: jest.Mock };
+  let registry: Registry;
+  let metrics: DispatchMetrics;
+  let handler: DispatchAnalyticsHandler;
+
+  const cancelledPayload: CancelledPayload = {
+    requestId: 'req-cancel-001',
+    riderId: 'rider-cancel-001',
+    tripId: 'trip-cancel-001',
+    reason: 'rider_cancelled',
+    cancelledBy: 'rider',
+    ts: new Date().toISOString(),
+  };
+
+  beforeEach(() => {
+    registry = new Registry();
+    const analyticsPersistFailures = new Counter<'event_name'>({
+      name: 'analytics_persist_failures_total_f2',
+      help: 'Analytics persist failures (F2 test suite)',
+      labelNames: ['event_name'],
+      registers: [registry],
+    });
+    const noop = {} as never;
+    metrics = {
+      pipelineDuration: noop,
+      phaseDuration: noop,
+      candidatesInitial: noop,
+      candidatesAfterFilter: noop,
+      suggestionTotal: noop,
+      fallbackTotal: noop,
+      distanceProviderCalls: noop,
+      evaluateTotal: noop,
+      evaluateDurationMs: noop,
+      confirmTotal: noop,
+      candidatesCount: noop,
+      phaseCandidatureDurationMs: noop,
+      phaseFilterDurationMs: noop,
+      phaseScoringDurationMs: noop,
+      suggestionGenerated: noop,
+      suggestionAccepted: noop,
+      suggestionRejected: noop,
+      fallbackActivated: noop,
+      noAvailability: noop,
+      scoringWeights: noop,
+      analyticsPersistFailures,
+    };
+
+    analyticsRepo = {
+      create: jest.fn().mockReturnValue({}),
+      save: jest.fn().mockResolvedValue(undefined),
+    };
+
+    mockLogger = {
+      warn: jest.fn(),
+      error: jest.fn(),
+      log: jest.fn(),
+      setContext: jest.fn(),
+    };
+
+    handler = new DispatchAnalyticsHandler(analyticsRepo as never, mockLogger as never, metrics);
+  });
+
+  it('T-F2-01a: onCancelled calls analyticsRepo.save exactly once', async () => {
+    await handler.onCancelled(cancelledPayload);
+
+    expect(analyticsRepo.save).toHaveBeenCalledTimes(1);
+  });
+
+  it('T-F2-01b: analyticsRepo.create is called with eventName=dispatch.cancelled', async () => {
+    await handler.onCancelled(cancelledPayload);
+
+    expect(analyticsRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventName: DispatchEventName.Cancelled,
+      }),
+    );
+  });
+
+  it('T-F2-01c: analyticsRepo.create maps requestId, tripId, riderId correctly', async () => {
+    await handler.onCancelled(cancelledPayload);
+
+    expect(analyticsRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestId: cancelledPayload.requestId,
+        tripId: cancelledPayload.tripId,
+        userId: cancelledPayload.riderId,
+      }),
+    );
+  });
+
+  it('T-F2-01d: onCancelled does not throw when save rejects (analytics swallowed)', async () => {
+    analyticsRepo.save.mockRejectedValue(new Error('DB down'));
+
+    await expect(handler.onCancelled(cancelledPayload)).resolves.toBeUndefined();
   });
 });
