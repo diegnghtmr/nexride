@@ -64,6 +64,9 @@ bash scripts/verify-doc-paths.sh
 echo "[ci-local] Step 4/10: verify-doc-consistency"
 bash scripts/verify-doc-consistency.sh
 
+echo "[ci-local] Step 4b/10: verify-status-consistency"
+bash scripts/verify-status-consistency.sh
+
 echo "[ci-local] Step 5/10: verify:env"
 npm run verify:env
 

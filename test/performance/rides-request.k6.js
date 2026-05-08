@@ -20,6 +20,12 @@ export const options = {
     http_req_duration: ['p(95)<800', 'p(99)<1200'],
     // Less than 1% error rate
     http_req_failed: ['rate<0.01'],
+    // Judgment 16° B3: response-shape checks must pass at 100%. Without this, a
+    // 500 with ok latency would pass http_req_duration silently — the gate would
+    // only catch slow responses, not wrong ones.
+    'checks{check:201 status}': ['rate==1.0'],
+    'checks{check:has requestId}': ['rate==1.0'],
+    'checks{check:has original}': ['rate==1.0'],
   },
 };
 
