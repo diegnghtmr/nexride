@@ -31,6 +31,7 @@ function makeSafePoint(safetyValue: number, loc?: GeoPoint): SafePointCandidate 
     safetyScore: Score.of(safetyValue),
     name: 'Test Point',
     zoneId: 'zone-1',
+    reason: 'Test fixture reason',
   });
 }
 

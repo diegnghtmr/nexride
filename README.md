@@ -22,7 +22,7 @@ Este repositorio contiene el **vertical slice backend completo**: evaluación de
 | Observabilidad — Logs estructurados pino (NFR-18) | Implementado | NFR-18 |
 | Observabilidad — Métricas Prometheus prom-client (NFR-19) | Implementado | NFR-19 |
 | Observabilidad — Alertas configuradas (NFR-20) | Fuera de Alcance | NFR-20 |
-| Observabilidad — Tracing OpenTelemetry (NFR-21) | Parcial | NFR-21 |
+| Observabilidad — Tracing OpenTelemetry (NFR-21) | Fuera de Alcance | NFR-21 (ADR-015) |
 | CI con 7 jobs bloqueantes | Implementado | CI-01 |
 
 Ver [`SCOPE.md`](./SCOPE.md) para el detalle exhaustivo por ID de requisito (RTF/NFR/CT/CAT).
@@ -97,7 +97,7 @@ nexride/
 │   ├── trip/                             # Trip mínimo (requested → assigned)
 │   ├── analytics/                        # Event handlers → analytics_events
 │   ├── rider/                            # Controller POST /rides/*
-│   └── migrations/                       # 1700000000 … 1700000004
+│   └── migrations/                       # 17000000010000 … 17000000010006 (7 migraciones)
 ├── test/
 │   ├── unit/dispatch/, fleet/, safe-points/
 │   ├── integration/rides/, fleet/, safe-points/
@@ -114,7 +114,7 @@ nexride/
 
 ## Prerequisitos
 
-- **Node.js 20** (LTS). La versión 22+ tiene incompatibilidades con dependency-cruiser — usar Node 20 para `npm run arch:check`.
+- **Node.js 22.12+** (LTS). El `package.json` campo `engines` exige `>=22.12.0 <25.0.0`. Node 22 es el runtime de CI y donde se valida toda la suite. Node ≥23 puede correr el grueso de la suite, pero `dependency-cruiser` v16.4 falla a cargar — ver `docs/adr/ADR-009-arch-check-node-compat.md` §Amendment v0.1.22-mvp y usar `npm run arch:check:docker` en ese caso.
 - **Docker** (para Testcontainers en tests de integración)
 - **npm 10+**
 - **k6** (para `npm run test:performance` — opcional en local, requerido en CI)
@@ -167,24 +167,23 @@ DISTANCE_INJECT_TIMEOUT=false
 
 ## Ejecutando verificaciones de arquitectura localmente
 
-`npm run arch:check` requiere **Node 20** (depcruise v16.4.0 no es compatible con Node ≥22). Detalles en [`docs/adr/ADR-009-arch-check-node-compat.md`](./docs/adr/ADR-009-arch-check-node-compat.md).
+`npm run arch:check` funciona en **Node 20 y Node 22** (CI usa Node 22 y es la fuente de verdad para toda PR). En **Node ≥23**, `dependency-cruiser` v16.4 falla a cargar (`R_OK` no es export nombrado de `node:fs`); el spec de Jest `test/architecture/dispatch-isolation.spec.ts` se auto-skipea en Node ≥23 con mensaje accionable. Detalles en [`docs/adr/ADR-009-arch-check-node-compat.md`](./docs/adr/ADR-009-arch-check-node-compat.md) §Amendment v0.1.22-mvp.
 
-**Opción A — nvm (recomendado, más rápido):**
+**Opción A — directo en Node 22:**
 
 ```bash
-nvm use 20
 npm run arch:check
 ```
 
-**Opción B — Docker (sin nvm):**
+**Opción B — Docker (cuando estás en Node ≥23 local):**
 
 ```bash
 npm run arch:check:docker
 ```
 
-Ejecuta depcruise dentro de un contenedor `node:20-alpine` con el directorio de trabajo montado. Requiere Docker instalado.
+Ejecuta depcruise dentro de un contenedor `node:22-alpine` con el directorio de trabajo montado. Requiere Docker instalado.
 
-En CI el job `architecture-rules` usa `node-version: 20` y es la fuente de verdad para toda PR.
+En CI el job `architecture-rules` usa `node-version: 22` y es la fuente de verdad para toda PR. La actualización a `dependency-cruiser` 17.4 (que soporta Node ≥24 nativamente) está pendiente como follow-up, no bloqueante.
 
 ---
 
@@ -207,8 +206,8 @@ npm run test:integration    # Jest integration (Testcontainers — requiere Dock
 npm run test:performance    # k6 smoke test (requiere k6 instalado)
 
 # Arquitectura
-npm run arch:check          # dependency-cruiser → 0 violaciones (Node 20)
-npm run arch:check:docker   # ídem via Docker node:20-alpine (sin nvm)
+npm run arch:check          # dependency-cruiser → 0 violaciones (Node 20 o 22)
+npm run arch:check:docker   # ídem via Docker node:22-alpine (cuando local es Node ≥23)
 
 # Build y OpenAPI
 npm run build               # nest build → dist/
@@ -246,7 +245,9 @@ npm run migrate             # Aplica todas las migraciones pendientes
 
 ---
 
-## Decisiones técnicas relevantes (5 ADRs)
+## Decisiones técnicas relevantes (ADRs)
+
+Las decisiones aceptadas se documentan como ADRs numerados. Las primeras cinco se transcriben aquí; los ADR-006 a ADR-016 viven en [`docs/adr/`](./docs/adr/) por extensión. Total: **16 ADRs vigentes** (ADR-001..ADR-016).
 
 ### ADR-001 — `IDistanceProvider`: Haversine stub con cache Redis y fault injection
 
@@ -274,7 +275,7 @@ DD-01 especifica un bus de eventos in-process para el monolito MVP. Kafka agrega
 
 1. **npm audit — dev tooling highs**: `npm audit --audit-level=high --omit=dev` retorna exit 0 — **0 highs en el árbol de producción**. NestJS 11 fue migrado en commit `7f3eb09` (tag `v0.1.4-mvp`), resolviendo los 7 highs de producción que existían en versiones anteriores (aceptados formalmente bajo ADR-006, ahora superseded por ADR-007). Dev tooling (webpack, @nestjs/cli, testcontainers y similares) puede reportar highs en `npm audit` sin `--omit=dev`; estos no afectan el árbol de producción y no son bloqueantes. Gate CI: `--audit-level=high --omit=dev` (exit 0 requerido).
 
-2. **dependency-cruiser en Node >=22**: `npx depcruise` puede fallar con Node 25 (experimental VM modules). CI usa Node 20. El test de arquitectura detecta la versión y salta con advertencia en Node >=22.
+2. **dependency-cruiser en Node ≥23**: `npx depcruise` v16.4 falla en Node ≥23 por el cambio de export de `R_OK` en `node:fs`. CI usa Node 22 (compatible). El test de arquitectura detecta la versión y salta con advertencia accionable en Node ≥23, sugiriendo `arch:check:docker`. Detalles en ADR-009 §Amendment v0.1.22-mvp.
 
 3. **TestContextGuard deshabilitado por defecto**: Requiere `TEST_CONTEXT_GUARD_ENABLED=true` en `.env`. En tests de integración se setea vía `process.env` antes del bootstrap.
 

@@ -1,4 +1,5 @@
 import { MiddlewareConsumer, Module, NestModule, ValidationPipe } from '@nestjs/common';
+import helmet from 'helmet';
 import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -149,6 +150,14 @@ import { RenameAnalyticsColumns17000000010006 } from './migrations/1700000001000
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
+    // OWASP A05 (Security Misconfiguration) mitigation: helmet sets X-Content-Type-Options,
+    // X-Frame-Options, Strict-Transport-Security, Referrer-Policy, X-DNS-Prefetch-Control,
+    // X-Download-Options, X-Permitted-Cross-Domain-Policies, and removes X-Powered-By.
+    // CSP disabled — this slice exposes a JSON API to integrations, not a browser SPA;
+    // CSP and per-origin CORS allowlist arrive together when the browser client lands post-MVP.
+    // Applied via module middleware so the headers are present in BOTH `nest start`
+    // (main.ts entrypoint) AND integration tests built with Test.createTestingModule().
+    consumer.apply(helmet({ contentSecurityPolicy: false })).forRoutes('/{*splat}');
     // RequestIdMiddleware assigns correlationId to all requests
     consumer.apply(RequestIdMiddleware).forRoutes('/{*splat}');
   }

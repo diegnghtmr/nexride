@@ -8,6 +8,16 @@
 - NO AI attribution of any kind.
 - One concern per commit.
 
+### Where the conventional-commit gate runs
+
+The gate runs **server-side** via the squash-merge PR title — there is no local
+`commit-msg` hook, no `husky/` directory, and no `commitlint` dependency. The PR
+title is reviewed by a human reviewer before merge, and the squash-merge
+configuration (`squash_merge_commit_title=PR_TITLE`) means the PR title becomes
+the commit subject on `main`. Branch-protection (ADR-012) requires that route.
+Local hook tooling was intentionally removed in favour of the server-side review
+to keep the dev environment minimal.
+
 ## Squash-merge guidance
 
 The repo squash-merge default is configured to use the **PR title as the commit subject** and

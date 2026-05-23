@@ -18,7 +18,7 @@
 | TRD §6.4 | RTF-15 | Implementado | `src/fleet/infrastructure/redis-fleet.adapter.ts` | `test/integration/fleet/fleet.read.spec.ts` |
 | TRD §6.5 | RTF-16 | Implementado | `src/dispatch/domain/services/candidate-generator.ts` | `test/unit/dispatch/services/candidate-generator.spec.ts` |
 | TRD §6.5 | RTF-17 | Implementado | `src/dispatch/domain/services/candidate-filter.ts` | `test/unit/dispatch/services/candidate-filter.spec.ts` |
-| TRD §6.5 | RTF-18 | Implementado | `src/dispatch/domain/services/scoring-engine.ts` | `test/unit/dispatch/services/scoring-engine.spec.ts` |
+| TRD §6.5 | RTF-18 | Implementado | `src/dispatch/domain/services/candidate-generator.ts` (ST_DWithin safe points dentro de radio configurable), `src/common/config/dispatch.config.ts` | `test/unit/dispatch/services/candidate-generator.spec.ts`, `test/integration/rides/rides.request.spec.ts` |
 | TRD §6.5 | RTF-19 | Implementado | `src/dispatch/domain/services/decision-maker.ts` | `test/unit/dispatch/services/decision-maker.spec.ts` |
 | TRD §6.5 | RTF-20 | Implementado | `src/dispatch/domain/services/decision-maker.ts` | `test/unit/dispatch/services/decision-maker.spec.ts` |
 | TRD §6.5 | RTF-21 | Implementado | `src/dispatch/domain/services/fallback-handler.ts` | `test/unit/dispatch/services/fallback-handler.spec.ts` |
@@ -54,7 +54,7 @@
 | TRD §7.5 | NFR-18 | Implementado | `src/common/observability/pino.config.ts` | Logs JSON visibles en integration tests vía nestjs-pino |
 | TRD §7.5 | NFR-19 | Implementado | `src/common/observability/metrics.controller.ts`, `src/common/observability/metrics.registry.ts`, `src/common/observability/observability.module.ts` | `test/integration/observability/metrics-endpoint.spec.ts` |
 | TRD §7.5 | NFR-20 | Fuera de Alcance — pipeline alertas post-MVP | `src/common/observability/metrics.registry.ts` (métricas disponibles para scraping) | — |
-| TRD §7.5 | NFR-21 | Parcial — SDK instalado, bootstrap pendiente | `package.json` (`@opentelemetry/sdk-node: 0.52.1`) | — |
+| TRD §7.5 | NFR-21 | Fuera de Alcance — requiere colector backend de tracing | — | — |
 
 ---
 
@@ -81,7 +81,7 @@
 | DD-01 §2 | Dispatch consume fleet/safe-points solo via interfaces | Implementado | `src/common/interfaces/IFleetService.ts`, `ISafePointsService.ts` |
 | DD-01 §3 | In-process event bus para analytics | Implementado | `src/common/events/`, `src/analytics/handlers/dispatch.handler.ts` |
 | DD-01 §4 | Hexagonal — dominio framework-agnostic | Implementado | `src/dispatch/domain/**` (cero imports @nestjs) |
-| DD-01 §5 | Migraciones explícitas TypeORM | Implementado | `src/migrations/` (6 migraciones: EnablePostgis, CreateSafePoints, CreateDispatchDecisions, CreateTrips, CreateAnalyticsEvents, AddDestinationToDispatchDecisions) |
+| DD-01 §5 | Migraciones explícitas TypeORM | Implementado | `src/migrations/` (7 migraciones: EnablePostgis, CreateSafePoints, CreateDispatchDecisions, CreateTrips, CreateAnalyticsEvents, AddDestinationToDispatchDecisions, RenameAnalyticsColumns) |
 
 ---
 

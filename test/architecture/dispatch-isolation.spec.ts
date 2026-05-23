@@ -5,8 +5,10 @@
  * have zero violations. Also validates a deliberate-failure case by temporarily
  * creating a forbidden import file and asserting depcruise reports a violation.
  *
- * NOTE: dependency-cruiser requires Node 20. On Node >=22 the --reporter flag
- * may have changed. The test skips gracefully if depcruise is not available.
+ * NOTE: dependency-cruiser 16.4 works on Node 20 and Node 22 (CI runs Node 22).
+ * On Node ≥23 the ESM module `node:fs` no longer exports `R_OK` as a named
+ * export and depcruise fails to load. The test skips on Node ≥23 ONLY so that
+ * CI on Node 22 still exercises this gate. See ADR-009 §Amendment v0.1.22-mvp.
  *
  * Run via: npm run test:integration (which includes test/architecture/**)
  */
@@ -35,18 +37,24 @@ function runDepcruise(extraArgs: string = ''): { stdout: string; exitCode: numbe
   }
 }
 
-// Judgment 16° B2: previously these tests used a bare `return` to skip on Node ≥22,
+// Judgment 16° B2: previously these tests used a bare `return` to skip,
 // which made Jest report them as PASSING with no assertions — false-green risk.
 // Now we use `it.skip` which marks them as PENDING in the report.
+//
+// Judgment 22° tightening: depcruise 16.4 works on Node 20 and Node 22 (CI runs
+// Node 22), but breaks on Node ≥23 because `node:fs` no longer exports `R_OK` as
+// a named export. The skip threshold is now Node ≥23 (was Node ≥22), recovering
+// signal on the CI runtime. ADR-009 §Amendment v0.1.22-mvp documents this.
 const NODE_MAJOR = parseInt(process.version.slice(1).split('.')[0], 10);
 const SKIP_REASON =
-  `depcruise requires Node ≤21 (current: ${process.version}). ` +
-  `Run \`nvm use 20 && npm run arch:check\` for local repro, ` +
-  `or use \`npm run arch:check:docker\`. See docs/adr/ADR-009-arch-check-node-compat.md.`;
-const itOrSkip = NODE_MAJOR >= 22 ? it.skip : it;
+  `depcruise 16.4 breaks on Node ≥23 (current: ${process.version}). ` +
+  `CI Node 22 runs the test as PASS. For local repro on Node ≥23, use ` +
+  `\`npm run arch:check:docker\` (Node 22 container) or upgrade depcruise to 17.4+. ` +
+  `See docs/adr/ADR-009-arch-check-node-compat.md §Amendment v0.1.22-mvp.`;
+const itOrSkip = NODE_MAJOR >= 23 ? it.skip : it;
 
 describe('Architecture — Dispatch Isolation Rules', () => {
-  if (NODE_MAJOR >= 22) {
+  if (NODE_MAJOR >= 23) {
     console.warn(`[arch-isolation] PENDING on Node ${process.version} — ${SKIP_REASON}`);
   }
 

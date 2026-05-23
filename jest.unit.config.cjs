@@ -31,11 +31,13 @@ module.exports = {
   coverageThreshold: {
     'src/dispatch/domain/**/*.ts': { statements: 85, branches: 80 },
     // Judgment 16° B1: application orchestrators included in the gate. Statements
-    // gate at 80 (vs 85 for domain) and branches at 40 (vs 80) because abort /
-    // timeout / fallback / suggestion-event paths are dominantly integration-tested
-    // (rides.request.spec.ts + rides.confirm.spec.ts), and duplicating them as
-    // unit tests would add maintenance cost without catching real regressions.
-    'src/dispatch/application/**/*.ts': { statements: 80, branches: 40 },
+    // gate at 95 (vs 85 for domain). Branches at 70 (raised from 40 in v0.1.22-mvp
+    // after judgment 22° Juez A F8 flagged 40% as a non-binding gate). The
+    // remaining un-covered branches in evaluate-dispatch.use-case.ts (signal.aborted
+    // mid-pipeline guards) are exercised in integration tests
+    // (rides.request.timeout.spec.ts via DISTANCE_INJECT_TIMEOUT=true).
+    // Current measured: 98.17 statements / 81.53 branches — gate has 3.2/11.5% headroom.
+    'src/dispatch/application/**/*.ts': { statements: 95, branches: 70 },
     'src/dispatch/infrastructure/providers/**/*.ts': { statements: 85, branches: 80 },
     'src/safe-points/safe-points.service.ts': { statements: 85, branches: 80 },
   },

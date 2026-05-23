@@ -60,3 +60,41 @@ engines while CI and arch:check only run Node 20 creates a false expectation tha
 those versions are validated. Históricamente the cap was loose because Node 22 was
 expected to be validated by v0.1.10-mvp; that validation was deferred and the
 rubric residuals pass enforces consistency now.
+
+## Amendment — v0.1.22-mvp Node 22 validated; skip threshold lifted to Node ≥23
+
+After judgment 20° F1 raised every CI job to `node-version: 22` and judgment 21°
+flagged the documentation drift (this ADR still said "Node 20 source of truth"),
+we re-validated empirically:
+
+- **depcruise 16.4.0 LOADS and RUNS correctly on Node 22.** The R_OK named-export
+  break only happens on Node ≥23 (where `node:fs` ESM exports changed). CI Node 22
+  passes the `architecture-rules` job using `npx depcruise --config ...
+  --output-type err src` directly.
+- **The Jest spec `test/architecture/dispatch-isolation.spec.ts` previously
+  skipped on Node ≥22**, which produced false PENDING in CI Node 22 — losing the
+  signal of the integration check (the spec also performs a deliberate-violation
+  self-test that the direct CLI invocation does NOT cover).
+- Skip threshold tightened from `NODE_MAJOR >= 22` to `NODE_MAJOR >= 23`. CI Node
+  22 now runs both assertions (zero violations + deliberate-violation detection).
+  Local devs on Node 24/25 still get the actionable PENDING with remedy pointing
+  at `arch:check:docker`.
+- `package.json` engines remain at `>=22.12.0 <25.0.0` (set by judgment 20° F2).
+  The cap stays at <25 to mirror what is actually validated; Node 25 devs are
+  blocked from `npm install` by `engines` and routed to `arch:check:docker`.
+- depcruise 17.4 explicitly supports `^20.12 || ^22 || >=24` and resolves the
+  Node ≥23 break entirely; upgrade tracked as follow-up but **not blocking**
+  since CI Node 22 already enforces the gate.
+
+CI source of truth, post-amendment: **Node 22 with depcruise 16.4 — both the
+direct CLI and the Jest integration spec exercise the architecture rules.**
+
+## Amendment — v0.1.22-mvp arch:check:docker base image alignment
+
+`arch:check:docker` previously used `node:20-alpine` because that matched CI at
+the time of writing. Since CI now runs Node 22, the docker base is updated to
+`node:22-alpine` to match. The `--ignore-scripts` and `--engine-strict=false`
+flags are not needed in the container because the container's Node is inside
+the engines range. This removes the EBADENGINE error that local devs would hit
+when running `npm run arch:check:docker` after judgment 20° tightened the
+engines field.

@@ -13,3 +13,12 @@ reports/
 .nyc_output/
 tmp/
 .claude/
+
+# Profesor's private course notes — not part of the entregable (per user instructions)
+docs/apuntes_*.md
+
+# Local agent caches (.atl/skill-registry.md itself IS tracked)
+.atl/.skill-registry.cache.json
+
+# Stray empty artifacts occasionally created by shells/redirects
+=20.0.0

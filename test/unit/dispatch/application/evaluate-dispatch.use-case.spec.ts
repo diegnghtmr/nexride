@@ -21,6 +21,8 @@ import { DispatchEventName } from '../../../../src/common/events/event-names';
 import { loadDispatchConfig } from '../../../../src/common/config/dispatch.config';
 import { GeoPoint } from '../../../../src/dispatch/domain/value-objects/geo-point.vo';
 import { VehicleCandidate } from '../../../../src/dispatch/domain/entities/vehicle-candidate';
+import { SafePointCandidate } from '../../../../src/dispatch/domain/entities/safe-point-candidate';
+import { Score } from '../../../../src/dispatch/domain/value-objects/score.vo';
 
 const cfg = loadDispatchConfig({});
 
@@ -170,6 +172,105 @@ describe('EvaluateDispatchUseCase', () => {
 
       const calls = deps.emitSpy.mock.calls.map((c) => c[0]);
       expect(calls).toContain(DispatchEventName.NoAvailability);
+    });
+  });
+
+  /**
+   * Branch coverage for suggestion-emission paths (judgment 22° F8 close).
+   * The happy-path test above uses `safePoints: []` so the suggestion branches
+   * never fire. These tests force a non-empty safe-point catalog and assert
+   * the SuggestionShown event + suggested option propagation including the
+   * `reasonText` from the safe-point catalog (RTF-06).
+   */
+  describe('suggestion-emission paths (branch coverage)', () => {
+    function makeSafePoint(safetyValue: number, lat = 4.6502, lng = -74.0498): SafePointCandidate {
+      return new SafePointCandidate({
+        id: '11111111-1111-4111-8111-111111111111',
+        location: GeoPoint.of(lat, lng),
+        safetyScore: Score.of(safetyValue),
+        name: 'Portería Norte',
+        zoneId: 'zone-pilot',
+        reason: 'Iluminación nocturna y vigilancia 24/7',
+      });
+    }
+
+    it('emits SuggestionShown and propagates catalog reason as reasonText when suggestion fires (RTF-06)', async () => {
+      const deps = buildDeps();
+      // Vehicle close to origin; safe-point gives the rider a +15% relative safety improvement
+      // when measured against the no-safe-point baseline (safety 0.3 vs 0.6 = 100% improvement)
+      // and the walking distance is well within 120m.
+      deps.candidateGenerator.generate.mockResolvedValue({
+        vehicles: [makeVehicle()],
+        safePoints: [makeSafePoint(0.95)],
+      });
+      deps.candidateFilter.filter.mockReturnValue({ passed: [makeVehicle()], rejections: [] });
+
+      // First call: vehicle+null safepoint baseline. Second call: vehicle+safe-point combo.
+      deps.scoringEngine.score
+        .mockResolvedValueOnce({
+          proximity: 0.9,
+          energy: 0.8,
+          safety: 0.3,
+          continuity: 0.7,
+          total: 0.55,
+          etaSeconds: 120,
+          walkingMeters: 0,
+        })
+        .mockResolvedValueOnce({
+          proximity: 0.88,
+          energy: 0.8,
+          safety: 0.6,
+          continuity: 0.7,
+          total: 0.72,
+          etaSeconds: 130,
+          walkingMeters: 60,
+        });
+
+      const useCase = makeUseCase(deps);
+      const out = await useCase.execute(input);
+
+      expect(out.fallback).toBe(false);
+      expect(out.suggested).toBeDefined();
+      expect(out.suggested!.reasonText).toBe('Iluminación nocturna y vigilancia 24/7');
+      expect(out.suggested!.walkingDistanceM).toBeCloseTo(60, 0);
+
+      const emittedEvents = deps.emitSpy.mock.calls.map((c) => c[0]);
+      expect(emittedEvents).toContain(DispatchEventName.SuggestionShown);
+    });
+
+    it('does NOT emit SuggestionShown when no safe-point yields ≥15% relative safety improvement', async () => {
+      const deps = buildDeps();
+      deps.candidateGenerator.generate.mockResolvedValue({
+        vehicles: [makeVehicle()],
+        safePoints: [makeSafePoint(0.32)], // barely above baseline → < 15% improvement
+      });
+      deps.candidateFilter.filter.mockReturnValue({ passed: [makeVehicle()], rejections: [] });
+      deps.scoringEngine.score
+        .mockResolvedValueOnce({
+          proximity: 0.9,
+          energy: 0.8,
+          safety: 0.3,
+          continuity: 0.7,
+          total: 0.55,
+          etaSeconds: 120,
+          walkingMeters: 0,
+        })
+        .mockResolvedValueOnce({
+          proximity: 0.88,
+          energy: 0.8,
+          safety: 0.32,
+          continuity: 0.7,
+          total: 0.57,
+          etaSeconds: 125,
+          walkingMeters: 50,
+        });
+
+      const useCase = makeUseCase(deps);
+      const out = await useCase.execute(input);
+
+      expect(out.suggested).toBeUndefined();
+      const emittedEvents = deps.emitSpy.mock.calls.map((c) => c[0]);
+      expect(emittedEvents).not.toContain(DispatchEventName.SuggestionShown);
     });
   });
 });

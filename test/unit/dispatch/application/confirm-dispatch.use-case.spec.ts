@@ -15,7 +15,9 @@ import {
   RequestNotFoundError,
   RequestAlreadyConfirmedError,
   RequestNotAuthorizedError,
+  MissingSuggestedCoordinatesError,
 } from '../../../../src/common/errors/domain-error';
+import { DispatchEventName } from '../../../../src/common/events/event-names';
 import { DispatchDecisionEntity } from '../../../../src/dispatch/infrastructure/persistence/dispatch-decision.entity';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DataSource, EntityManager, SelectQueryBuilder } from 'typeorm';
@@ -228,5 +230,130 @@ describe('ConfirmDispatchUseCase — W-5 SELECT FOR UPDATE', () => {
 
     expect(result.tripId).toBe('trip-uuid-001');
     expect(result.status).toBe('assigned');
+  });
+});
+
+describe('ConfirmDispatchUseCase — branch coverage for suggestion paths', () => {
+  it('throws RequestNotFoundError when decisionRepo.findByRequestId returns null (pre-flight check)', async () => {
+    const decisionRepo = makeDecisionRepo();
+    (decisionRepo.findByRequestId as jest.Mock).mockResolvedValueOnce(null);
+    const dataSource = makeDataSource(BASE_ENTITY);
+    const tripService = makeTripService();
+    const eventEmitter = makeEventEmitter();
+
+    const useCase = new ConfirmDispatchUseCase(decisionRepo, tripService, dataSource, eventEmitter);
+    await expect(
+      useCase.execute({ requestId: 'req-not-exist', riderId: 'rider-001', choice: 'original' }),
+    ).rejects.toBeInstanceOf(RequestNotFoundError);
+  });
+
+  it('throws MissingSuggestedCoordinatesError when choice=suggested but suggestedPointId is null', async () => {
+    // decision marked as suggested but lacking coordinates (corrupted scenario)
+    const corruptedEntity = {
+      ...BASE_ENTITY,
+      suggestionStatus: 'shown' as const,
+      suggestedPointId: null, // marker conflict — should error inside the transaction
+      // suggestedLat/Lng intentionally omitted
+    };
+    const decisionRepo = makeDecisionRepo();
+    (decisionRepo.findByRequestId as jest.Mock).mockResolvedValueOnce({
+      requestId: 'req-001',
+      riderId: 'rider-001',
+      origin: { lat: 4.65, lng: -74.05 },
+      destination: { lat: 4.7, lng: -74.1 },
+      suggestedPointId: undefined,
+      scoresJson: {},
+      suggestionStatus: 'shown',
+      pipelineDurationMs: 200,
+    });
+    const dataSource = makeDataSource(corruptedEntity);
+    const tripService = makeTripService();
+    const eventEmitter = makeEventEmitter();
+
+    const useCase = new ConfirmDispatchUseCase(decisionRepo, tripService, dataSource, eventEmitter);
+    await expect(
+      useCase.execute({ requestId: 'req-001', riderId: 'rider-001', choice: 'suggested' }),
+    ).rejects.toBeInstanceOf(MissingSuggestedCoordinatesError);
+  });
+
+  it('emits SuggestionAccepted when suggestionStatus="shown" and rider chooses suggested', async () => {
+    const entityWithSuggested = {
+      ...BASE_ENTITY,
+      suggestionStatus: 'shown' as const,
+      suggestedPointId: 'sp-uuid-001',
+      suggestedLat: 4.66,
+      suggestedLng: -74.06,
+    };
+    const decisionRepo = makeDecisionRepo();
+    (decisionRepo.findByRequestId as jest.Mock).mockResolvedValueOnce({
+      requestId: 'req-001',
+      riderId: 'rider-001',
+      origin: { lat: 4.65, lng: -74.05 },
+      destination: { lat: 4.7, lng: -74.1 },
+      suggestedPointId: 'sp-uuid-001',
+      suggestedLocation: { lat: 4.66, lng: -74.06 },
+      scoresJson: {},
+      suggestionStatus: 'shown',
+      pipelineDurationMs: 200,
+    });
+    const dataSource = makeDataSource(entityWithSuggested);
+    const tripService = makeTripService();
+    const eventEmitter = makeEventEmitter();
+
+    const useCase = new ConfirmDispatchUseCase(decisionRepo, tripService, dataSource, eventEmitter);
+    await useCase.execute({ requestId: 'req-001', riderId: 'rider-001', choice: 'suggested' });
+
+    expect(eventEmitter.emit).toHaveBeenCalledWith(
+      DispatchEventName.SuggestionAccepted,
+      expect.objectContaining({ safePointId: 'sp-uuid-001' }),
+    );
+  });
+
+  it('emits SuggestionRejected when suggestionStatus="shown" but rider chooses original', async () => {
+    const entityWithSuggested = {
+      ...BASE_ENTITY,
+      suggestionStatus: 'shown' as const,
+      suggestedPointId: 'sp-uuid-001',
+      suggestedLat: 4.66,
+      suggestedLng: -74.06,
+    };
+    const decisionRepo = makeDecisionRepo();
+    (decisionRepo.findByRequestId as jest.Mock).mockResolvedValueOnce({
+      requestId: 'req-001',
+      riderId: 'rider-001',
+      origin: { lat: 4.65, lng: -74.05 },
+      destination: { lat: 4.7, lng: -74.1 },
+      suggestedPointId: 'sp-uuid-001',
+      suggestedLocation: { lat: 4.66, lng: -74.06 },
+      scoresJson: {},
+      suggestionStatus: 'shown',
+      pipelineDurationMs: 200,
+    });
+    const dataSource = makeDataSource(entityWithSuggested);
+    const tripService = makeTripService();
+    const eventEmitter = makeEventEmitter();
+
+    const useCase = new ConfirmDispatchUseCase(decisionRepo, tripService, dataSource, eventEmitter);
+    await useCase.execute({ requestId: 'req-001', riderId: 'rider-001', choice: 'original' });
+
+    expect(eventEmitter.emit).toHaveBeenCalledWith(
+      DispatchEventName.SuggestionRejected,
+      expect.objectContaining({ safePointId: 'sp-uuid-001' }),
+    );
+  });
+
+  it('does NOT emit suggestion accepted/rejected when suggestionStatus="not_shown" (no suggestion was made)', async () => {
+    const dataSource = makeDataSource(BASE_ENTITY);
+    const decisionRepo = makeDecisionRepo();
+    const tripService = makeTripService();
+    const eventEmitter = makeEventEmitter();
+
+    const useCase = new ConfirmDispatchUseCase(decisionRepo, tripService, dataSource, eventEmitter);
+    await useCase.execute({ requestId: 'req-001', riderId: 'rider-001', choice: 'original' });
+
+    // Neither suggestion accepted nor rejected should fire when there was no suggestion to begin with
+    const emittedEvents = (eventEmitter.emit as jest.Mock).mock.calls.map((call) => call[0]);
+    expect(emittedEvents).not.toContain(DispatchEventName.SuggestionAccepted);
+    expect(emittedEvents).not.toContain(DispatchEventName.SuggestionRejected);
   });
 });

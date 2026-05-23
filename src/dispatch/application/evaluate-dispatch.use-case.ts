@@ -237,45 +237,7 @@ export class EvaluateDispatchUseCase {
     }
 
     // Phase 3: Scoring — build (vehicle × safePoint|null) matrix
-    const scoringStart = Date.now();
-    const scoringInputs = filtered.flatMap((vehicle) => {
-      const combos = [
-        {
-          origin,
-          vehicle,
-          safePoint: null,
-          tripDistanceKm,
-          zoneFactor: 0.5,
-        },
-        ...safePoints.map((sp) => ({
-          origin,
-          vehicle,
-          safePoint: sp,
-          tripDistanceKm,
-          zoneFactor: 0.5,
-        })),
-      ];
-      return combos;
-    });
-
-    const scoreResults = await Promise.all(
-      scoringInputs.map(async (inp) => {
-        const result = await this.scoringEngine.score(inp, signal);
-        const combo: ScoredCombo = {
-          vehicleId: inp.vehicle.id,
-          safePointId: inp.safePoint?.id ?? null,
-          ...result,
-        };
-        return { combo, safePoint: inp.safePoint };
-      }),
-    );
-
-    const combos = scoreResults.map((r) => r.combo);
-    const safePointMap = new Map(scoreResults.map((r) => [r.combo.safePointId, r.safePoint]));
-    const scoringDurationMs = Date.now() - scoringStart;
-    this.metrics?.phaseScoringDurationMs.observe(scoringDurationMs);
-    // F6 REQ-FIX-V8-06: wire phaseDuration{phase:'scoring'} alongside per-phase histogram
-    this.metrics?.phaseDuration.observe({ phase: 'scoring' }, scoringDurationMs);
+    const { combos, safePointMap } = await this.runScoringPhase(filtered, safePoints, origin, tripDistanceKm, signal);
 
     // REQ-FIX-V8-01: abort guard after Phase 3 scoring
     if (signal.aborted) return this.earlyAbortSentinel();
@@ -369,26 +331,7 @@ export class EvaluateDispatchUseCase {
       },
     };
 
-    let suggested: SuggestedOption | undefined;
-    if (decision.suggestion) {
-      const sp = safePointMap.get(decision.suggestion.safePointId);
-      const bestSafeCombo = combos.find(
-        (c) => c.vehicleId === decision.primary.vehicleId && c.safePointId === decision.suggestion!.safePointId,
-      );
-      suggested = {
-        safePointId: decision.suggestion.safePointId,
-        walkingDistanceM: decision.suggestion.walkingMeters,
-        pickup: sp ? { lat: sp.location.lat, lng: sp.location.lng } : { lat: origin.lat, lng: origin.lng },
-        reasonText: 'Mejor iluminación y mayor flujo peatonal',
-        scores: {
-          proximity: bestSafeCombo?.proximity ?? 0,
-          energy: bestSafeCombo?.energy ?? 0,
-          safety: bestSafeCombo?.safety ?? 0,
-          continuity: bestSafeCombo?.continuity ?? 0,
-          total: bestSafeCombo?.total ?? 0,
-        },
-      };
-    }
+    const suggested = this.buildSuggestedOption(decision, combos, safePointMap, origin);
 
     return {
       requestId,
@@ -396,6 +339,75 @@ export class EvaluateDispatchUseCase {
       suggested,
       ttlSeconds: 60,
       fallback: false,
+    };
+  }
+
+  private async runScoringPhase(
+    filtered: Awaited<ReturnType<CandidateGenerator['generate']>>['vehicles'],
+    safePoints: Awaited<ReturnType<CandidateGenerator['generate']>>['safePoints'],
+    origin: GeoPoint,
+    tripDistanceKm: number,
+    signal: AbortSignal,
+  ): Promise<{
+    combos: ScoredCombo[];
+    safePointMap: Map<string | null, Awaited<ReturnType<CandidateGenerator['generate']>>['safePoints'][number] | null>;
+  }> {
+    const scoringStart = Date.now();
+    const scoringInputs = filtered.flatMap((vehicle) => [
+      { origin, vehicle, safePoint: null, tripDistanceKm, zoneFactor: 0.5 },
+      ...safePoints.map((sp) => ({ origin, vehicle, safePoint: sp, tripDistanceKm, zoneFactor: 0.5 })),
+    ]);
+
+    const scoreResults = await Promise.all(
+      scoringInputs.map(async (inp) => {
+        const result = await this.scoringEngine.score(inp, signal);
+        const combo: ScoredCombo = {
+          vehicleId: inp.vehicle.id,
+          safePointId: inp.safePoint?.id ?? null,
+          ...result,
+        };
+        return { combo, safePoint: inp.safePoint };
+      }),
+    );
+
+    const combos = scoreResults.map((r) => r.combo);
+    const safePointMap = new Map(scoreResults.map((r) => [r.combo.safePointId, r.safePoint]));
+    const scoringDurationMs = Date.now() - scoringStart;
+    this.metrics?.phaseScoringDurationMs.observe(scoringDurationMs);
+    // F6 REQ-FIX-V8-06: wire phaseDuration{phase:'scoring'} alongside per-phase histogram
+    this.metrics?.phaseDuration.observe({ phase: 'scoring' }, scoringDurationMs);
+
+    return { combos, safePointMap };
+  }
+
+  private buildSuggestedOption(
+    decision: ReturnType<DecisionMaker['decide']>,
+    combos: ScoredCombo[],
+    safePointMap: Map<string | null, Awaited<ReturnType<CandidateGenerator['generate']>>['safePoints'][number] | null>,
+    origin: GeoPoint,
+  ): SuggestedOption | undefined {
+    if (!decision.suggestion) return undefined;
+
+    const sp = safePointMap.get(decision.suggestion.safePointId);
+    const bestSafeCombo = combos.find(
+      (c) => c.vehicleId === decision.primary.vehicleId && c.safePointId === decision.suggestion!.safePointId,
+    );
+    return {
+      safePointId: decision.suggestion.safePointId,
+      walkingDistanceM: decision.suggestion.walkingMeters,
+      pickup: sp ? { lat: sp.location.lat, lng: sp.location.lng } : { lat: origin.lat, lng: origin.lng },
+      // RTF-06: razón del punto seguro proviene del catálogo (`safe_points.reason`),
+      // no de un string hardcoded en el use-case. Fallback solo defensivo si llegara
+      // un candidato sin razón — la entidad de dominio exige que `reason` sea no-vacío
+      // al construirse (validado en SafePointsService.create).
+      reasonText: sp?.reason ?? 'Punto seguro recomendado',
+      scores: {
+        proximity: bestSafeCombo?.proximity ?? 0,
+        energy: bestSafeCombo?.energy ?? 0,
+        safety: bestSafeCombo?.safety ?? 0,
+        continuity: bestSafeCombo?.continuity ?? 0,
+        total: bestSafeCombo?.total ?? 0,
+      },
     };
   }
 }

@@ -54,6 +54,7 @@ export class CandidateGenerator {
           safetyScore: Score.of(sp.safetyScore),
           name: sp.name,
           zoneId: sp.zoneId,
+          reason: sp.reason,
         }),
     );
 
