@@ -1,288 +1,144 @@
-# NexRide MVP — Vertical Slice Backend
+<!-- markdownlint-disable-next-line MD041 -->
+<div align="center">
 
-## Propósito
+<h1>NexRide</h1>
 
-NexRide MVP implementa el motor de despacho contextual con sugerencia de puntos seguros de recogida. El sistema evalúa candidatos de vehículos en radio configurable, los filtra por batería, elegibilidad y frescura de telemetría, calcula un score compuesto (proximidad, energía, seguridad, continuidad) y sugiere al rider un punto seguro cercano cuando la mejora relativa de seguridad supera el 15%.
+<p><strong>A dispatch API for electric fleets that ranks vehicles and offers nearby pickup options.</strong></p>
 
-Este repositorio contiene el **vertical slice backend completo**: evaluación de despacho, confirmación, gestión de puntos seguros, módulo de analítica, observabilidad, pruebas y CI con 7 jobs bloqueantes. El alcance está declarado explícitamente en [`SCOPE.md`](./SCOPE.md).
+<p>
+<a href="https://github.com/diegnghtmr/NexRide/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/diegnghtmr/NexRide/ci.yml?branch=main&style=for-the-badge&labelColor=1F1F28&label=CI" alt="CI"></a>
+<img src="https://img.shields.io/badge/NestJS-11-E0C15A?style=for-the-badge&labelColor=1F1F28" alt="NestJS 11">
+<img src="https://img.shields.io/badge/PostGIS-3.4-E0C15A?style=for-the-badge&labelColor=1F1F28" alt="PostGIS 3.4">
+<img src="https://img.shields.io/badge/Redis-7-E0C15A?style=for-the-badge&labelColor=1F1F28" alt="Redis 7">
+<a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-7FB4CA?style=for-the-badge&labelColor=1F1F28" alt="License: MIT"></a>
+</p>
 
----
+<p>
+<a href="https://diegnghtmr.me/en/work/nexride/"><strong>Case study</strong></a> &bull;
+<a href="#quick-start"><strong>Quick start</strong></a> &bull;
+<a href="#architecture"><strong>Architecture</strong></a>
+</p>
 
-## Alcance resumido
+</div>
 
-| Módulo | Estado | Referencia |
-|---|---|---|
-| Motor de despacho (`/rides/request`) | Implementado | RTF-16..22 |
-| Confirmación de viaje (`/rides/confirm`) | Implementado | RTF-28, DC-01..02 |
-| Gestión de puntos seguros (`/safe-points`) | Implementado | RTF-23..25, SP-01..03 |
-| Flota read-side (Redis) | Implementado | RTF-14..15 |
-| Trip mínimo (`requested → assigned`) | Parcial | RTF-26..28 |
-| Analítica de eventos del flujo | Implementado · RTF-31 / Parcial · RTF-32 (`dispatch.cancelled` scaffolding wire-only — históricamente "Implementado" hasta v0.1.13-mvp; reclasificado en v0.1.14-mvp por residual v12 F1) | RTF-31..32 |
-| Observabilidad — Rate limiting (NFR-17) | Implementado | NFR-17 |
-| Observabilidad — Logs estructurados pino (NFR-18) | Implementado | NFR-18 |
-| Observabilidad — Métricas Prometheus prom-client (NFR-19) | Implementado | NFR-19 |
-| Observabilidad — Alertas configuradas (NFR-20) | Fuera de Alcance | NFR-20 |
-| Observabilidad — Tracing OpenTelemetry (NFR-21) | Fuera de Alcance | NFR-21 (ADR-015) |
-| CI con 7 jobs bloqueantes | Implementado | CI-01 |
+The closest electric vehicle isn't always eligible: it may be busy, low on charge, or reporting stale telemetry. NexRide ranks eligible vehicles, explains when a nearby catalog pickup scores better, and lets the rider choose before the API assigns a trip. It is a backend slice, not a rider app or fleet dashboard.
 
-Ver [`SCOPE.md`](./SCOPE.md) para el detalle exhaustivo por ID de requisito (RTF/NFR/CT/CAT).
+## Features
 
----
+- **Fleet eligibility.** Filter nearby Redis fleet snapshots on status, eligibility, battery reserve, and telemetry age before ranking them.
+- **Explainable ranking.** Score proximity, energy, pickup safety, and fleet continuity with explicit weights and return the individual scores.
+- **Pickup choice.** Keep the original pickup available and suggest a catalog point within 120 m by default if its relative safety score improves by at least 15%.
+- **One assignment per request.** Confirm the rider's choice in a database transaction that locks the preliminary decision and creates the trip.
+- **Catalog management.** Manage safe points through role-gated, audited `/safe-points` endpoints.
+- **Operational signals.** Record dispatch and trip events for analytics, log correlated requests, serve Prometheus metrics, and apply user and IP rate limits.
 
-## Arquitectura
+## Quick start
 
-El sistema sigue **arquitectura hexagonal con monolito modular**. La regla central: `src/dispatch/**` solo puede acceder a módulos externos mediante interfaces en `src/common/interfaces/**` o eventos en `src/common/events/**`. Ningún módulo externo puede importar desde `src/dispatch/domain/**` o `src/dispatch/application/**`.
+Use Node.js **22.12+** on the Node 22 line, npm **10+**, and Docker Compose. The manifest permits Node versions below 25, but the architecture gate should run on Node 22. The development Compose file provides PostGIS and Redis; wait for both services to be healthy before migrating the disposable database.
 
-```
-HTTP Request
-    │
-    ▼
-┌─────────────────────────────────────────────────────────────┐
-│  src/rider/rider.controller.ts                              │
-│  POST /rides/request  ·  POST /rides/confirm                │
-│         │                                                   │
-│         ▼  via DispatchFacade (única entrada pública)       │
-│  src/dispatch/                                              │
-│    dispatch.facade.ts                                       │
-│    application/                                             │
-│      evaluate-dispatch.use-case.ts                          │
-│      confirm-dispatch.use-case.ts                           │
-│    domain/                                                  │
-│      services/ (CandidateGenerator, CandidateFilter,        │
-│                 ScoringEngine, DecisionMaker,                │
-│                 FallbackHandler, DecisionRecorder)           │
-│      value-objects/ (GeoPoint, Score, RequestId)            │
-│      entities/ (VehicleCandidate, SafePointCandidate)       │
-│    infrastructure/                                          │
-│      persistence/ (DispatchDecisionEntity, Repository)      │
-│      providers/ (HaversineDistanceProvider, LocalFlag)      │
-│         │                                                   │
-│         │ via common/interfaces/IFleetService               │
-│         ▼                                                   │
-│  src/fleet/        src/safe-points/   src/trip/             │
-│  src/analytics/    (event listeners)                        │
-└─────────────────────────────────────────────────────────────┘
-    │
-    ▼
-PostgreSQL + PostGIS · Redis
+```sh
+git clone https://github.com/diegnghtmr/NexRide.git
+cd NexRide
+npm ci
+docker compose up -d postgres redis
 ```
 
-Las reglas de arquitectura están automatizadas en `.dependency-cruiser.cjs` y verificadas en cada PR via `npm run arch:check`.
+Set `DATABASE_URL` to the local Compose database `nexride_dev` and `REDIS_URL` to `redis://localhost:6379`. Supply the local PostgreSQL username and password from the development Compose configuration, not from a production database. For loopback request testing only, set `NODE_ENV=development` and `TEST_CONTEXT_GUARD_ENABLED=true`.
 
----
-
-## Árbol de directorios
-
-```
-nexride/
-├── src/
-│   ├── main.ts                           # Bootstrap + Prometheus /metrics
-│   ├── app.module.ts
-│   ├── common/
-│   │   ├── config/dispatch.config.ts     # Configuración externalizada
-│   │   ├── errors/domain-error.ts        # DomainError base + subclases
-│   │   ├── events/event-names.ts, event-payloads.ts
-│   │   ├── filters/domain-exception.filter.ts
-│   │   ├── guards/test-context.guard.ts, rbac.guard.ts
-│   │   ├── interfaces/IFleetService.ts, ISafePointsService.ts, ITripService.ts …
-│   │   └── observability/pino.config.ts, metrics.controller.ts, metrics.registry.ts, observability.module.ts, request-id.middleware.ts
-│   ├── dispatch/
-│   │   ├── dispatch.module.ts
-│   │   ├── dispatch.facade.ts            # Única entrada pública del módulo
-│   │   ├── application/evaluate-dispatch.use-case.ts, confirm-dispatch.use-case.ts
-│   │   ├── domain/entities/, value-objects/, services/
-│   │   └── infrastructure/persistence/, providers/
-│   ├── fleet/                            # Redis read-side
-│   ├── safe-points/                      # CRUD con RBAC + auditoría
-│   ├── trip/                             # Trip mínimo (requested → assigned)
-│   ├── analytics/                        # Event handlers → analytics_events
-│   ├── rider/                            # Controller POST /rides/*
-│   └── migrations/                       # 17000000010000 … 17000000010006 (7 migraciones)
-├── test/
-│   ├── unit/dispatch/, fleet/, safe-points/
-│   ├── integration/rides/, fleet/, safe-points/
-│   ├── architecture/dispatch-isolation.spec.ts
-│   └── performance/rides-request.k6.js
-├── scripts/generate-openapi.ts
-├── .dependency-cruiser.cjs
-├── .github/workflows/ci.yml              # 7 jobs bloqueantes
-├── SCOPE.md
-└── docs/traceability-matrix.md
+```sh
+npm run migrate
+npm run dev
 ```
 
----
+Open `http://localhost:3000/api` for the development OpenAPI UI. The local test identity mechanism is disabled in production; it is not rider authentication. To get an assignment rather than a no-candidate result, populate the disposable datastore with fixture fleet snapshots and pickup points using the [performance fixture](test/performance/seed.ts) workflow in [CI](.github/workflows/ci.yml).
 
-## Prerequisitos
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `DATABASE_URL`, `REDIS_URL` | PostGIS database and Redis fleet/cache connections. | Set explicitly for the local services |
+| `NODE_ENV`, `PORT`, `LOG_LEVEL` | Runtime mode, HTTP port, and Pino verbosity. | Unset, `3000`, `info` |
+| `TEST_CONTEXT_GUARD_ENABLED` | Enable fixture identities outside production. | Disabled |
+| `DISPATCH_CANDIDATE_RADIUS_KM`, `DISPATCH_SAFE_POINT_RADIUS_M` | Search radii for vehicles and pickup locations. | `5`, `120` |
+| `DISPATCH_SUGGESTION_THRESHOLD_PCT`, `DISPATCH_ORIGINAL_SAFETY_BASELINE` | Minimum relative improvement and original pickup baseline. | `0.15`, `0.30` |
+| `DISPATCH_W_PROXIMITY`, `DISPATCH_W_ENERGY`, `DISPATCH_W_SAFETY`, `DISPATCH_W_CONTINUITY` | Score weights, which must sum to 1. | `0.30`, `0.25`, `0.25`, `0.20` |
+| `DISPATCH_SCORING_CONTINUITY_BATTERY_WEIGHT`, `DISPATCH_SCORING_CONTINUITY_ZONE_WEIGHT` | Continuity subscore weights, which must sum to 1. | `0.70`, `0.30` |
+| `DISPATCH_PIPELINE_TIMEOUT_MS`, `DISPATCH_FALLBACK_MIN_BATTERY`, `DISPATCH_MAX_ETA_SECONDS` | Evaluation timeout, fallback battery percentage, and ETA cap. | `1200`, `20`, `600` |
+| `FLEET_MINIMUM_RESERVE_PCT`, `FLEET_TELEMETRY_STALENESS_SEC` | Trip battery reserve fraction and telemetry freshness limit. | `0.15`, `60` |
+| `DISTANCE_CACHE_TTL_SEC`, `DISTANCE_PROVIDER_TIMEOUT_MS`, `DISTANCE_INJECT_TIMEOUT` | ETA cache lifetime, provider timeout, and deterministic timeout for local tests. | `60`, `800`, `false` |
 
-- **Node.js 22.12+** (LTS). El `package.json` campo `engines` exige `>=22.12.0 <25.0.0`. Node 22 es el runtime de CI y donde se valida toda la suite. Node ≥23 puede correr el grueso de la suite, pero `dependency-cruiser` v16.4 falla a cargar — ver `docs/adr/ADR-009-arch-check-node-compat.md` §Amendment v0.1.22-mvp y usar `npm run arch:check:docker` en ese caso.
-- **Docker** (para Testcontainers en tests de integración)
-- **npm 10+**
-- **k6** (para `npm run test:performance` — opcional en local, requerido en CI)
+## Architecture
 
----
+A modular NestJS monolith exposes `POST /rides/request` for evaluation and `POST /rides/confirm` for assignment. `DispatchFacade` delegates to two use cases. Cross-module dependencies use the shared ports and events; other modules do not import dispatch domain or application internals. The distance adapter estimates travel at a fixed 25 km/h using Haversine distance, caches estimates in Redis, and can be replaced behind `IDistanceProvider`. It does not account for road routes or traffic.
 
-## Variables de ambiente
-
-**Crear `.env` manualmente** con el siguiente contenido (`.env.example` está disponible en el repositorio como referencia):
-
-```dotenv
-# Base de datos PostgreSQL + PostGIS
-DATABASE_URL=postgresql://postgres:password@localhost:5432/nexride
-
-# Redis (fleet geo index + distance cache)
-REDIS_URL=redis://localhost:6379
-
-# NestJS
-NODE_ENV=development
-PORT=3000
-LOG_LEVEL=info
-
-# Test context guard (habilitar en tests locales)
-TEST_CONTEXT_GUARD_ENABLED=true
-
-# Dispatch config (opcionales — valores por defecto listos para usar)
-DISPATCH_CANDIDATE_RADIUS_KM=5
-DISPATCH_SAFE_POINT_RADIUS_M=120
-DISPATCH_SUGGESTION_THRESHOLD_PCT=0.15
-DISPATCH_ORIGINAL_SAFETY_BASELINE=0.30
-DISPATCH_W_PROXIMITY=0.30
-DISPATCH_W_ENERGY=0.25
-DISPATCH_W_SAFETY=0.25
-DISPATCH_W_CONTINUITY=0.20
-DISPATCH_PIPELINE_TIMEOUT_MS=1200
-DISPATCH_FALLBACK_MIN_BATTERY=20
-DISPATCH_MAX_ETA_SECONDS=600
-
-# Fleet
-FLEET_MINIMUM_RESERVE_PCT=0.15
-FLEET_TELEMETRY_STALENESS_SEC=60
-
-# Distance provider
-DISTANCE_CACHE_TTL_SEC=60
-DISTANCE_PROVIDER_TIMEOUT_MS=800
-DISTANCE_INJECT_TIMEOUT=false
+```mermaid
+flowchart LR
+    Rider["Rider API client"] -->|"Request and confirm"| API["NestJS HTTP controllers"]
+    API --> Facade["Dispatch facade"]
+    Facade --> Evaluate["Evaluate: filter and score"]
+    Facade --> Confirm["Confirm: assign once"]
+    Evaluate -->|"Fleet and ETA cache"| Redis[("Redis")]
+    Evaluate -->|"Catalog and preliminary decisions"| DB[("PostgreSQL / PostGIS")]
+    Confirm -->|"Lock decision and create trip"| DB
+    Confirm -->|"Event after commit"| Analytics["In-process analytics listener"]
+    Analytics -->|"Persists analytics events"| DB
 ```
 
----
+Safety is catalog-based, not a live street assessment. With no eligible candidate the API can return `422`; the trip lifecycle ends at assignment, and `dispatch.cancelled` is event scaffolding only. Decision coordinates are stored as doubles; safe points use PostGIS geography for proximity queries. [Scope](SCOPE.md), the [traceability matrix](docs/traceability-matrix.md), and the [ADRs](docs/adr/) document the details, including the distance and flag providers and the in-process event bus.
 
-## Ejecutando verificaciones de arquitectura localmente
+The status labels below are quoted from [Scope](SCOPE.md):
 
-`npm run arch:check` funciona en **Node 20 y Node 22** (CI usa Node 22 y es la fuente de verdad para toda PR). En **Node ≥23**, `dependency-cruiser` v16.4 falla a cargar (`R_OK` no es export nombrado de `node:fs`); el spec de Jest `test/architecture/dispatch-isolation.spec.ts` se auto-skipea en Node ≥23 con mensaje accionable. Detalles en [`docs/adr/ADR-009-arch-check-node-compat.md`](./docs/adr/ADR-009-arch-check-node-compat.md) §Amendment v0.1.22-mvp.
+| Capability | Scope status | Requirement |
+| --- | --- | --- |
+| Rate limits by user and IP | Implementado | NFR-17 |
+| Correlated Pino logs | Implementado | NFR-18 |
+| Prometheus `GET /metrics` | Implementado | NFR-19 |
+| Configured alerts | Fuera de Alcance | NFR-20 |
+| Distributed OpenTelemetry tracing | Fuera de Alcance | NFR-21 |
 
-**Opción A — directo en Node 22:**
+## Tech stack
 
-```bash
+| Layer | Technology |
+| --- | --- |
+| HTTP and application | NestJS 11, Express, TypeScript 5.5 |
+| Data | TypeORM, PostgreSQL 16 / PostGIS 3.4, Redis 7 |
+| Observability | Pino, `prom-client`, NestJS Throttler |
+| Quality | Jest 29, Testcontainers, dependency-cruiser, k6 |
+
+## Testing
+
+```sh
+npm run lint
+npm run typecheck
+npm run format:check
 npm run arch:check
+npm run test:unit
+npm run test:cov
+npm run test:integration
+npm run build
+npm run openapi:generate
 ```
 
-**Opción B — Docker (cuando estás en Node ≥23 local):**
+The [seven-job CI pipeline](.github/workflows/ci.yml) gates documentation and environment-example consistency, lint and types, dispatch isolation, coverage, integration, performance, production dependency audit and secret scanning, and build with OpenAPI generation. Integration uses PostGIS and Redis; the integration harness needs Docker unless external services are supplied. Generation writes `dist/openapi.json` and uses the service configuration.
 
-```bash
-npm run arch:check:docker
+The k6 smoke test (`npm run test:performance`) needs k6, a running app, and the CI performance fixtures. Its gates are `p95<800ms`, `p99<1200ms`, and successful response checks; these are test thresholds, not production measurements. The production audit (`npm run audit`) excludes development dependencies. dependency-cruiser 16.4 needs Node 22 for the architecture check; see [ADR-009](docs/adr/ADR-009-arch-check-node-compat.md).
+
+## Project structure
+
+```text
+src/dispatch/       Facade, use cases, domain logic, and adapters
+src/fleet/          Redis read-side
+src/safe-points/    Catalog, auditing, and permissions
+src/trip/           Trip assignment
+src/analytics/      Dispatch and trip event listeners
+src/common/         Configuration, ports, events, and observability
+src/migrations/     Database migrations
+test/               Unit, integration, architecture, and performance suites
 ```
 
-Ejecuta depcruise dentro de un contenedor `node:22-alpine` con el directorio de trabajo montado. Requiere Docker instalado.
+## Documentation
 
-En CI el job `architecture-rules` usa `node-version: 22` y es la fuente de verdad para toda PR. La actualización a `dependency-cruiser` 17.4 (que soporta Node ≥24 nativamente) está pendiente como follow-up, no bloqueante.
-
----
-
-## Comandos
-
-```bash
-# Desarrollo
-npm run dev                 # NestJS con watch
-
-# Calidad de código
-npm run lint                # ESLint (0 errores bloqueante en CI)
-npm run lint:fix            # ESLint + autofix
-npm run typecheck           # tsc --noEmit (strict)
-npm run format:check        # Prettier check
-
-# Tests
-npm run test:unit           # Jest unit (128+ tests)
-npm run test:unit -- --coverage  # Con reporte de cobertura
-npm run test:integration    # Jest integration (Testcontainers — requiere Docker)
-npm run test:performance    # k6 smoke test (requiere k6 instalado)
-
-# Arquitectura
-npm run arch:check          # dependency-cruiser → 0 violaciones (Node 20 o 22)
-npm run arch:check:docker   # ídem via Docker node:22-alpine (cuando local es Node ≥23)
-
-# Build y OpenAPI
-npm run build               # nest build → dist/
-npm run openapi:generate    # ts-node scripts/generate-openapi.ts → dist/openapi.json
-
-# Seguridad
-npm run audit               # npm audit --audit-level=high --omit=dev
-npm run gitleaks            # gitleaks secrets scan
-
-# Pipeline local completo (mismo orden que CI)
-npm run ci:local            # lint + typecheck + arch + cov + integration + audit
-
-# Migraciones
-npm run migrate             # Aplica todas las migraciones pendientes
-```
-
----
-
-## Guía de evaluación — dónde encontrar evidencia por ID
-
-| ID TRD | Qué demuestra | Archivo de código | Archivo de prueba |
-|---|---|---|---|
-| RTF-16 | Candidatura paralela Redis + PostGIS | `src/dispatch/domain/services/candidate-generator.ts` | `test/unit/dispatch/services/candidate-generator.spec.ts` |
-| RTF-17 | Filtrado multi-regla (batería, estado, telemetría) | `src/dispatch/domain/services/candidate-filter.ts` | `test/unit/dispatch/services/candidate-filter.spec.ts` |
-| RTF-18 | Score compuesto con pesos configurables | `src/dispatch/domain/services/scoring-engine.ts` | `test/unit/dispatch/services/scoring-engine.spec.ts` |
-| RTF-19/20 | Decisión ganador + sugerencia ≥15% mejora | `src/dispatch/domain/services/decision-maker.ts` | `test/unit/dispatch/services/decision-maker.spec.ts` |
-| RTF-21 | Fallback timeout/sin candidatos → HTTP 422 | `src/dispatch/domain/services/fallback-handler.ts` | `test/unit/dispatch/services/fallback-handler.spec.ts` |
-| RTF-22 | Persistencia preliminar con scores_json | `src/dispatch/infrastructure/persistence/decision.repository.ts` | `test/integration/rides/rides.request.spec.ts` |
-| RTF-23..25 | SafePoints CRUD + RBAC + auditoría | `src/safe-points/` | `test/integration/safe-points/` |
-| RTF-28 | pickup_type + suggested_point_id | `src/trip/infrastructure/trip.entity.ts` | `test/integration/rides/rides.confirm.spec.ts` |
-| RTF-31/32 | Analytics eventos dispatch + trip | `src/analytics/handlers/dispatch.handler.ts` | `test/integration/rides/rides.confirm.spec.ts` |
-| NFR-01 | Latencia p95<800ms, p99<1200ms | `test/performance/rides-request.k6.js` | CI job `performance-smoke` |
-| NFR-09 | Circuit breaker distancia → Haversine | `src/dispatch/infrastructure/providers/haversine-distance.provider.ts` | `test/unit/dispatch/services/haversine-distance-provider.spec.ts` |
-| CT-05/06 | Isolation dispatch ↔ fleet/safe-points | `.dependency-cruiser.cjs` | `test/architecture/dispatch-isolation.spec.ts` |
-
----
-
-## Decisiones técnicas relevantes (ADRs)
-
-Las decisiones aceptadas se documentan como ADRs numerados. Las primeras cinco se transcriben aquí; los ADR-006 a ADR-016 viven en [`docs/adr/`](./docs/adr/) por extensión. Total: **16 ADRs vigentes** (ADR-001..ADR-016).
-
-### ADR-001 — `IDistanceProvider`: Haversine stub con cache Redis y fault injection
-
-El TRD exige NFR-09 (circuito de fallback del proveedor de distancias). Sin credenciales de Google Distance Matrix en sandbox de evaluación, se implementa `HaversineDistanceProvider`: calcula distancia geoespacial + ETA a 25 km/h, cachea en Redis con TTL 60s, y acepta `DISTANCE_INJECT_TIMEOUT=true` para forzar un timeout determinista en tests (históricamente documentado como `DISTANCE_FAULT_INJECTION_RATE` hasta v0.1.12-mvp; alineado al flag boolean real en v0.1.13-mvp). El contrato `IDistanceProvider.getEtaSeconds()` es idéntico al de un provider externo real; el swap es **un binding** en `dispatch.module.ts`.
-
-### ADR-002 — `IFlagProvider`: `LocalFlagProvider` sobre `ConfigService`
-
-El DD-02 requiere pesos y thresholds configurables sin redeployment. Se implementa `LocalFlagProvider` que resuelve keys via dot-notation sobre `DispatchConfig`. La interfaz `IFlagProvider` es compatible con cualquier SDK de feature flags (Unleash, LaunchDarkly); el swap no toca el dominio.
-
-### ADR-003 — `TestContextGuard` en lugar de JWT/OTP completo
-
-RTF-01..03 (Auth) están fuera del alcance. Los endpoints de Rider y SafePoints igual requieren identidad autenticada para demostrar RBAC. `TestContextGuard` inyecta `req.user` desde headers `x-test-rider-id`/`x-test-rider-role`, y está **deshabilitado en `NODE_ENV=production`** (lanza `RbacForbiddenError`). El swap a JWT = reemplazar un guard.
-
-### ADR-004 — Umbral k6 CI (superseded en v0.1.1-mvp)
-
-ADR-004 (histórico, v0.1.0-mvp): el gate era p99<1500ms para tolerar overhead variable de runners de GitHub (hasta 300ms). En v0.1.1-mvp el gate CI ahora respeta NFR-01 directamente: p95<800ms y p99<1200ms. La medición real en CI smoke fue p99 ≈ 14ms (85× margen), demostrando que p99<1200ms es seguro y coherente con el objetivo de producción. ADR retenido para auditoría histórica de la decisión.
-
-### ADR-005 — `EventEmitter2` in-process vs Kafka
-
-DD-01 especifica un bus de eventos in-process para el monolito MVP. Kafka agrega infra (brokers, particiones, schemas) sin valor evaluable en este slice. `@nestjs/event-emitter` con canales nombrados `dispatch.*`/`trip.*` permite extracción directa a Kafka: los nombres de canal ya son estables y los handlers en `analytics/` serían simplemente consumidores Kafka.
-
----
-
-## Limitaciones conocidas
-
-1. **npm audit — dev tooling highs**: `npm audit --audit-level=high --omit=dev` retorna exit 0 — **0 highs en el árbol de producción**. NestJS 11 fue migrado en commit `7f3eb09` (tag `v0.1.4-mvp`), resolviendo los 7 highs de producción que existían en versiones anteriores (aceptados formalmente bajo ADR-006, ahora superseded por ADR-007). Dev tooling (webpack, @nestjs/cli, testcontainers y similares) puede reportar highs en `npm audit` sin `--omit=dev`; estos no afectan el árbol de producción y no son bloqueantes. Gate CI: `--audit-level=high --omit=dev` (exit 0 requerido).
-
-2. **dependency-cruiser en Node ≥23**: `npx depcruise` v16.4 falla en Node ≥23 por el cambio de export de `R_OK` en `node:fs`. CI usa Node 22 (compatible). El test de arquitectura detecta la versión y salta con advertencia accionable en Node ≥23, sugiriendo `arch:check:docker`. Detalles en ADR-009 §Amendment v0.1.22-mvp.
-
-3. **TestContextGuard deshabilitado por defecto**: Requiere `TEST_CONTEXT_GUARD_ENABLED=true` en `.env`. En tests de integración se setea vía `process.env` antes del bootstrap.
-
-4. **Performance test requiere Docker**: `npm run test:integration` levanta Testcontainers. Sin Docker activo, los tests de integración fallarán con error de conexión.
-
-5. **`DispatchDecisionEntity` usa lat/lng DOUBLE PRECISION**: El diseño original propone geography(Point,4326) para `dispatch_decisions`. Para mantener la entidad unit-testable sin PostGIS, se almacenan coords como floats. El tipo geography está en `safe_points` (donde se necesita ST_DWithin).
+- [Dispatch reference](docs/dispatch-reference.md) records the first five design decisions and additional local verification commands.
+- [Scope and requirements](SCOPE.md) and the [traceability matrix](docs/traceability-matrix.md) map implementation and tests to requirement IDs. The [ADR directory](docs/adr/) contains ADR-006 through ADR-016.
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
+[MIT](LICENSE).
