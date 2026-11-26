@@ -282,3 +282,7 @@ DD-01 especifica un bus de eventos in-process para el monolito MVP. Kafka agrega
 4. **Performance test requiere Docker**: `npm run test:integration` levanta Testcontainers. Sin Docker activo, los tests de integración fallarán con error de conexión.
 
 5. **`DispatchDecisionEntity` usa lat/lng DOUBLE PRECISION**: El diseño original propone geography(Point,4326) para `dispatch_decisions`. Para mantener la entidad unit-testable sin PostGIS, se almacenan coords como floats. El tipo geography está en `safe_points` (donde se necesita ST_DWithin).
+
+## License
+
+MIT, see [LICENSE](LICENSE).
